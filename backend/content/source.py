@@ -82,7 +82,7 @@ class EODData(BaseRequests):
         
         dic = {}
         for symbol in symbols:
-            payload = self.build_params(self.main_params, **kwargs)
+            payload = self.build_params(self.main_params, adj=True,  **kwargs)
             url = main_url + endpoint + '/' + symbol
             dic[symbol] = (url, payload)
 
@@ -98,10 +98,10 @@ class EODData(BaseRequests):
     def intraday_params(self, symbols:list, **kwargs):
         
         main_url = self.main_url
-        endpoint = '/real-time/' + symbols[0]
+        endpoint = '/intraday/' + symbols[0]
         symbols = ','.join(symbols[1:])
         dic = {}
-        payload = self.build_params(self.main_params, s=symbols, **kwargs)
+        payload = self.build_params(self.main_params, s=symbols, adj=True, **kwargs)
         url = main_url + endpoint
         dic = {'intraday': (url, payload)}
         return dic
