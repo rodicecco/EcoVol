@@ -9,6 +9,8 @@ import asyncpg
 import asyncio
 import nest_asyncio
 from . import secret
+import sqlite3 as sl
+
 
 nest_asyncio.apply()
 
@@ -18,29 +20,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
 from io import BytesIO
 
-
-def send_mail(subject, body, img = False):
-    sender = "rodicecco5@gmail.com"
-    receiver = "rodicecco@outlook.com"
-    app_password = "xkwy gyko fnfd yigd"
-
-
-    msg = MIMEMultipart()
-    msg["From"] = sender
-    msg["To"] = receiver
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain"))
-
-    if img != False:
-        image = MIMEImage(img.read(), name='chart.png')
-        image.add_header('Content-Disposition', 'attachment', filename="chart.png")
-        msg.attach(image)
-
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(sender, app_password)
-        server.sendmail(sender, receiver, msg.as_string())
-
-    print("Email sent successfully!")
 
 #Decorator to convert string dates into datetime type
 def convert_dates(date_code):
@@ -55,18 +34,19 @@ def convert_dates(date_code):
 class Database:
 
     def __init__(self, table_name, constraints):
-
+        
+        self.db_secret = secret.database['AWS']
         self.dtype_mapping = {'int64': 'BIGINT',
                                 'object': 'VARCHAR',
                                 'float64': 'FLOAT',
                                 'bool': 'BOOLEAN',
                                 'datetime64[ns]': 'TIMESTAMP'}
         
-        self.host = secret.database['GOOG']['host']
-        self.database = secret.database['GOOG']['database']
-        self.user = secret.database['GOOG']['user']
-        self.password = secret.database['GOOG']['password']
-        self.port = secret.database['GOOG']['port']
+        self.host = self.db_secret['host']
+        self.database = self.db_secret['database']
+        self.user = self.db_secret['user']
+        self.password = self.db_secret['password']
+        self.port = self.db_secret['port']
         
         self.conn_string = f'postgresql://{self.user}:{self.password}@{self.host}/{self.database}'
         self.alt_conn_string = f'host={self.host} dbname={self.database} user={self.user} password={self.password} port={self.port}'

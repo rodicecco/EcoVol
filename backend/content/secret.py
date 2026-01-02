@@ -4,9 +4,9 @@ key_chain = {'EOD': ' 62cb6d4b152f86.30923161',
 
 
 database = { 
-            'GOOG':{ #set up for google cloud database
-            'host':'34.60.50.195',
-            'database':'datadb',
+            'AWS':{ #set up for google cloud database
+            'host':'database-1.cdo4mki4sdt2.us-east-1.rds.amazonaws.com',
+            'database':'postgres',
             'user':'postgres',
             'password':'Vic24278175.', 
             'port':'5432'

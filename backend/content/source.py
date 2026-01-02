@@ -82,7 +82,7 @@ class EODData(BaseRequests):
         
         dic = {}
         for symbol in symbols:
-            payload = self.build_params(self.main_params, adj=True,  **kwargs)
+            payload = self.build_params(self.main_params, **kwargs)
             url = main_url + endpoint + '/' + symbol
             dic[symbol] = (url, payload)
 

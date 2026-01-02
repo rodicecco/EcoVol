@@ -27,8 +27,22 @@ class Dashboard:
         self.vixspread_tab = VixSpread(self.notebook)
         self.notebook.add(self.vixspread_tab, text="VIX Spread")
 
+        self.volspread_tab = VolSpread(self.notebook)
+        self.notebook.add(self.volspread_tab, text="Volatility Spread")
+
+        self.autocorr_tab = VixAutocorr(self.notebook)
+        self.notebook.add(self.autocorr_tab, text="Autocorrelation")
+
+
+        self.composite_tab = Composite(self.notebook, [self.vixspread_tab.indicator, 
+                                                       self.volspread_tab.indicator, 
+                                                       self.autocorr_tab.indicator])
+        self.notebook.add(self.composite_tab, text="Composite")
+
+        
+
         #Start the global sequence after window is drawn
-        self.indicator_tabs = [self.vixspread_tab] #Add other tabs as needed
+        self.indicator_tabs = [self.vixspread_tab, self.volspread_tab, self.autocorr_tab,self.composite_tab] #Add other tabs as needed
         self.root.after(500, self.start_global_load)
 
     def start_global_load(self):
@@ -64,9 +78,9 @@ class IndicatorModule(tk.Frame):
         self.main_container.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
         # --- Settings Box (Bottom) ---
-        self.settings_box = tk.Frame(self.main_container, height=300, bg='lightgrey', padx=10, pady=10)
-        self.settings_box.pack(side=tk.BOTTOM, fill=tk.X)
-        self.settings_box.pack_propagate(False)
+        #self.settings_box = tk.Frame(self.main_container, height=300, bg='lightgrey', padx=10, pady=10)
+        #self.settings_box.pack(side=tk.BOTTOM, fill=tk.X)
+        #self.settings_box.pack_propagate(False)
 
         # --- Plot Area (Top) ---
         self.plot_area = tk.Frame(self.main_container, bg='white')
@@ -74,7 +88,7 @@ class IndicatorModule(tk.Frame):
 
         # 2. THE INNER GRID FRAME (The "Content Holder")
         # We pack this inside the settings_box
-        self.grid_frame = tk.Frame(self.settings_box, bg='lightgrey')
+        self.grid_frame = tk.Frame(self.data_sidebar, bg='lightgrey')
         self.grid_frame.pack(fill=tk.BOTH, expand=True)
 
         # 3. CONFIGURE GRID ON THE INNER FRAME
@@ -133,32 +147,21 @@ class VixSpread(IndicatorModule):
         self.avg_window_input = tk.StringVar(value=self.indicator.avg_window)
         super().__init__(parent)
 
-        #self.fig = self.indicator.plot_indicator()
         # Placeholders for Plot
         self.fig = Figure(figsize=(5, 4))
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_area)
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.plot_area)        
         
-        #--- Canvas for Matplotlib Figure ---
-        #self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_area)
-        #self.canvas.draw()
-
-        #--- Toolbar for navigation ---
-        #self.toolbar = NavigationToolbar2Tk(self.canvas, self.plot_area)
-        #self.toolbar.update()
-        #self.toolbar.pack(side=tk.BOTTOM, fill=tk.X)
-
-        #self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         tk.Label(self.grid_frame, text="Avg. Window:", bg='lightgrey')\
                  .grid(row=3, column=0, sticky='e', pady=5)
         self.avg_window_entry = tk.Entry(self.grid_frame, width=8, textvariable=self.avg_window_input)
         self.avg_window_entry.grid(row=3, column=1, sticky='w', padx=10)
 
+
         # Override the button command to use our new threader
         self.update_button.config(command=self.run_update_thread)
-
 
     def process_data_backend(self):
         """HEAVY MATH - Runs in background thread"""
@@ -170,7 +173,54 @@ class VixSpread(IndicatorModule):
             
             # RUN THE CALCULATIONS
             self.indicator.indicator() 
-            self.fig = self.indicator.plot_indicator()
+            self.fig = self.indicator.plot_indicator(from_date=self.from_date_input.get())
+
+            # Tell Main Thread to update UI
+            self.after(0, self.update_ui_finished)
+        except Exception as e:
+            self.after(0, lambda: self.status_var.set(f"Error: {str(e)}"))
+
+    def update_ui_finished(self):
+        """UI UPDATE - Runs in main thread"""
+        for widget in self.plot_area.winfo_children():
+            widget.destroy() # Clear old canvas/toolbar
+
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_area)
+        self.canvas.draw()
+        
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.plot_area)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        
+        self.status_var.set("Status: Updated")
+        self.update_button.config(state='normal')
+
+class VixAutocorr(IndicatorModule):
+    def __init__(self, parent):
+        self.indicator = indicators.AutoCorrVol()
+        super().__init__(parent)
+
+        # Placeholders for Plot
+        self.fig = Figure(figsize=(5, 4))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_area)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.plot_area)        
+        
+
+
+        # Override the button command to use our new threader
+        self.update_button.config(command=self.run_update_thread)
+
+    def process_data_backend(self):
+        """HEAVY MATH - Runs in background thread"""
+        try:
+            # Sync inputs to indicator object
+            self.indicator.upper = float(self.upper_input.get())
+            self.indicator.lower = float(self.lower_input.get())
+            
+            # RUN THE CALCULATIONS
+            data = dashboard.volspread_tab.indicator.indicator_data['actual_vol']
+            self.indicator.indicator(data) 
+            self.fig = self.indicator.plot_indicator(from_date=self.from_date_input.get())
 
             # Tell Main Thread to update UI
             self.after(0, self.update_ui_finished)
@@ -192,33 +242,101 @@ class VixSpread(IndicatorModule):
         self.update_button.config(state='normal')
 
 
-    '''def update_indicator(self):
+class VolSpread(IndicatorModule):
+    def __init__(self, parent):
+        self.indicator = indicators.VolSpread()
+        self.avg_window_input = tk.StringVar(value=self.indicator.avg_window)
+        super().__init__(parent)
+
+        # Placeholders for Plot
+        self.fig = Figure(figsize=(5, 4))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_area)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.plot_area)        
+        
+
+        tk.Label(self.grid_frame, text="Avg. Window:", bg='lightgrey')\
+                 .grid(row=3, column=0, sticky='e', pady=5)
+        self.avg_window_entry = tk.Entry(self.grid_frame, width=8, textvariable=self.avg_window_input)
+        self.avg_window_entry.grid(row=3, column=1, sticky='w', padx=10)
+
+        # Override the button command to use our new threader
+        self.update_button.config(command=self.run_update_thread)
+
+    def process_data_backend(self):
+        """HEAVY MATH - Runs in background thread"""
         try:
+            # Sync inputs to indicator object
             self.indicator.upper = float(self.upper_input.get())
             self.indicator.lower = float(self.lower_input.get())
-            self.indicator.from_date = self.from_date_input.get()
             self.indicator.avg_window = int(self.avg_window_input.get())
-
-        except ValueError:
-            tk.messagebox.showerror("Input Error", "Please enter valid numeric values for thresholds and window size.")
             
-        self.canvas.get_tk_widget().destroy()
-        self.toolbar.destroy()
-        
-        #Recalculate indicator data
-        self.indicator.indicator()
+            # RUN THE CALCULATIONS
+            self.indicator.indicator() 
+            self.fig = self.indicator.plot_indicator(from_date=self.from_date_input.get())
 
-        #Replot figure
-        self.fig = self.indicator.plot_indicator()
-        self.canvas.figure = self.fig
+            # Tell Main Thread to update UI
+            self.after(0, self.update_ui_finished)
+        except Exception as e:
+            self.after(0, lambda: self.status_var.set(f"Error: {str(e)}"))
+
+    def update_ui_finished(self):
+        """UI UPDATE - Runs in main thread"""
+        for widget in self.plot_area.winfo_children():
+            widget.destroy() # Clear old canvas/toolbar
+
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_area)
         self.canvas.draw()
-
+        
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.plot_area)
-        self.toolbar.update()
-        self.toolbar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        
+        self.status_var.set("Status: Updated")
+        self.update_button.config(state='normal')
+  
+class Composite(IndicatorModule):
+    def __init__(self, parent, indicators_list):
+        self.indicator = indicators.Composite(indicators_list)
+        super().__init__(parent)
 
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)'''   
+        # Placeholders for Plot
+        self.fig = Figure(figsize=(5, 4))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_area)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.plot_area)        
+
+        # Override the button command to use our new threader
+        self.update_button.config(command=self.run_update_thread)
+
+    def process_data_backend(self):
+        """HEAVY MATH - Runs in background thread"""
+        try:
+            # Sync inputs to indicator object
+            self.indicator.upper = float(self.upper_input.get())
+            self.indicator.lower = float(self.lower_input.get())
+            
+            # RUN THE CALCULATIONS
+            self.indicator.indicator() 
+            self.fig = self.indicator.plot_indicator(from_date=self.from_date_input.get())
+
+            # Tell Main Thread to update UI
+            self.after(0, self.update_ui_finished)
+        except Exception as e:
+            self.after(0, lambda: self.status_var.set(f"Error: {str(e)}"))
+
+    def update_ui_finished(self):
+        """UI UPDATE - Runs in main thread"""
+        for widget in self.plot_area.winfo_children():
+            widget.destroy() # Clear old canvas/toolbar
+
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_area)
+        self.canvas.draw()
+        
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.plot_area)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        
+        self.status_var.set("Status: Updated")
+        self.update_button.config(state='normal')
 
 if __name__ == "__main__":
     root = tk.Tk()
