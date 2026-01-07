@@ -1,0 +1,4 @@
+/* This reduces the base font size for the entire app */
+html, body {
+    font-size: 12px; /* Default is usually 16px */
+}

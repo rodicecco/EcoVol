@@ -6,6 +6,10 @@ import numpy as np
 from datetime import date, datetime, timezone
 from matplotlib.figure import Figure
 from content import admin
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+
 
 plt.style.use('seaborn-v0_8-darkgrid')
 plt.rcParams.update({'font.size': 8})
@@ -82,12 +86,34 @@ class Data:
 
         return volatility
     
+    def get_gex(self, append=True):
+        symbol='gex'
+        with admin.Database('', []).engine().connect() as conn:
+            query = f'''SELECT date, {symbol} FROM dix WHERE date > '{self.from_date}';'''
+            data = pd.read_sql(query, conn)
+        
+        data.set_index('date', inplace=True)
+        data.index = pd.to_datetime(data.index)
+        data = data[[symbol]]
+        data.columns = [symbol]
+
+        if append is True:
+            if self.check_data() is True:
+                if symbol not in self.data.columns:
+                    self.data = self.data.merge(data, how='left', left_index=True, right_index=True)
+            else:
+                self.data = data
+
+        return data
+
+    
     def load_data(self):
         self.get_historical(self.benchmark)
         self.get_historical('VIX.INDX')
         self.get_historical('VVIX.INDX')
         self.get_historical('VIX1D.INDX')
         self.volatility()
+        self.get_gex()
         return True
 
 
@@ -157,7 +183,85 @@ class ModelAdmin:
         return fig
 
 
+    def plot_indicator_plotly(self, from_date=None):
 
+        if hasattr(self, 'model_data'):
+            data = self.model_data
+        else:
+            data = self.indicator()
+
+        if from_date is not None:
+            from_date = from_date
+        else:
+            from_date = self.from_date
+
+        data = self.model_data.loc[from_date:]
+
+        #Create subplots
+        fig = make_subplots(
+            rows=3, cols=1, 
+            shared_xaxes=True, 
+            vertical_spacing=0.05, 
+            row_heights=self.view_ratios, 
+            specs=[[{"secondary_y": True}], [{"secondary_y": False}], [{"secondary_y": False}]]
+        )
+
+        #Main axis (Row 1, Primary Y)
+        for col in self.axis[0]:
+            fig.add_trace(
+                go.Scatter(x=data.index, y=data[col], name=col), 
+                row=1, 
+                col=1
+            )
+        
+        #Seconday Main Axis (Row1, Secondary Y)
+        for col in self.axis[1]:
+            fig.add_trace(
+                go.Scatter(x=data.index, y=data[col], name=col, opacity=0.5), 
+                row=1, 
+                col=1, 
+                secondary_y=True
+            )
+
+        #Light axis
+        color_map = {self.other: 'yellow', self.above_up: 'green', self.below_low: 'red'}
+        bar_colors = [color_map.get(x, 'yellow') for x in data['SIGNAL']]
+
+        fig.add_trace(
+            go.Bar(
+                x=data.index,
+                y=[1] * len(data),
+                marker_color=bar_colors,
+                showlegend=False,
+                marker_line_width=0
+            ),
+            row=2,
+            col=1
+        )
+        
+        #Support axis
+        for col in self.axis[2]:
+            fig.add_trace(
+                go.Scatter(x=data.index, y=data[col], name=col), 
+                row=3, 
+                col=1
+            )
+
+        # Threshold lines
+        fig.add_hline(y=self.upper, line_dash="dash", line_color="black", row=3, col=1)
+        fig.add_hline(y=self.lower, line_dash="dash", line_color="black", row=3, col=1)
+
+        # 5. Layout Styling
+        fig.update_layout(
+            title=self.name,
+            height=800, # Adjust based on preference
+            template="plotly_white",
+            hovermode="x unified",
+            showlegend=True,
+            bargap=0
+        )
+
+        return fig
 
 
 #Composite model class
@@ -168,6 +272,7 @@ class Composite(ModelAdmin):
         self.code = 'COMPOSITE'
         self.description = '''Composite model based on aggregate of signals'''
         self.from_date = from_date
+        self.status = 'Not Loaded'
 
         #Data and model parameters
         self.benchmark = benchmark
@@ -184,24 +289,30 @@ class Composite(ModelAdmin):
 
         ModelAdmin.__init__(self)
 
-        self.data_obj.load_data()
+
 
     def load_models(self):
+        self.data_obj.load_data()
+        if self.status == 'Not Loaded':
 
-        for model in self.models_list:
-            obj = model(self.data_obj.data, benchmark=self.benchmark, from_date=self.from_date)
-            obj.indicator()
-            self.models[obj.code] = obj
+            for model in self.models_list:
+                obj = model(self.data_obj.data, benchmark=self.benchmark, from_date=self.from_date)
+                obj.indicator()
+                self.models[obj.code] = obj
 
-            if hasattr(self, 'signal_data'):
-                self.signal_data = self.signal_data.merge(obj.signal, how='left', left_index=True, right_index=True)
-            else:
-                self.signal_data = obj.signal
-        
-        return self.signal_data
+                if hasattr(self, 'signal_data'):
+                    self.signal_data = self.signal_data.merge(obj.signal, how='left', left_index=True, right_index=True)
+                else:
+                    self.signal_data = obj.signal
+            
+            self.status = 'Loaded'
+            return self.signal_data
+        else:
+            return self.signal_data
+
     
     def refresh_models(self):
-
+        self.data_obj.load_data()
         if hasattr(self, 'signal_data'):
             delattr(self, 'signal_data')
 
@@ -230,7 +341,7 @@ class Composite(ModelAdmin):
         data.loc[data[self.code]>self.upper, 'SIGNAL'] = self.above_up
         data.loc[data[self.code]<self.lower, 'SIGNAL'] = self.below_low
         data['SIGNAL'] = data['SIGNAL'].fillna(self.other)
-
+        data = data.dropna()
 
         self.model_data = data
         self.signal = data[['SIGNAL']]
@@ -239,6 +350,10 @@ class Composite(ModelAdmin):
         self.axis = {0:[self.benchmark],
                      1:[], 
                      2:[self.code]}
+        
+        self.last_stats = data.iloc[-1]
+        self.last_update = data.index[-1]
+        
 
         return data
     
@@ -288,6 +403,7 @@ class VolSpread(ModelAdmin):
         data.loc[data['AVGRATIO']>self.upper, 'SIGNAL'] = self.above_up
         data.loc[data['AVGRATIO']<self.lower, 'SIGNAL'] = self.below_low
         data['SIGNAL'] = data['SIGNAL'].fillna(self.other)
+        data = data.dropna()
         self.model_data = data
         self.signal = data[['SIGNAL']]
         self.signal.columns = [self.code]
@@ -295,6 +411,9 @@ class VolSpread(ModelAdmin):
         self.axis = {0:[self.benchmark],
                      1:['ACTVOL', 'VIX1D.INDX'], 
                      2:['VOLRATIO', 'AVGRATIO']}
+        
+        self.last_stats = data.iloc[-1]
+        self.last_update = data.index[-1]
         return data
 
 class VolAutocorr(ModelAdmin):
@@ -325,6 +444,7 @@ class VolAutocorr(ModelAdmin):
         data.loc[data['AUTOCORR']>self.upper, 'SIGNAL'] = self.above_up
         data.loc[data['AUTOCORR']<self.lower, 'SIGNAL'] = self.below_low
         data['SIGNAL'] = data['SIGNAL'].fillna(self.other)
+        data = data.dropna()
         self.model_data = data
         self.signal = data[['SIGNAL']]
         self.signal.columns = [self.code]
@@ -332,7 +452,9 @@ class VolAutocorr(ModelAdmin):
         self.axis = {0:[self.benchmark],
                      1:['ACTVOL'], 
                      2:['AUTOCORR']}
-
+        
+        self.last_stats = data.iloc[-1]
+        self.last_update = data.index[-1]
         return data
 
 
@@ -366,7 +488,7 @@ class VixSpread(ModelAdmin):
         data.loc[data['AVGDIF']>self.upper, 'SIGNAL'] = self.above_up
         data.loc[data['AVGDIF']<self.lower, 'SIGNAL'] = self.below_low
         data['SIGNAL'] = data['SIGNAL'].fillna(self.other)
-        
+        data = data.dropna()
         self.model_data = data
         self.signal = data[['SIGNAL']]
         self.signal.columns = [self.code]
@@ -375,4 +497,48 @@ class VixSpread(ModelAdmin):
                      1:['VVIX.INDX', 'VIX.INDX'], 
                      2:['VIXDIF', 'AVGDIF']}
 
-        return data    
+        self.last_stats = data.iloc[-1]
+        self.last_update = data.index[-1]
+        return data
+    
+
+class GEX(ModelAdmin):
+    def __init__(self, data, benchmark='SPY', from_date='2022-05-16 00:00'):
+        #Meta information
+        self.name = 'GEX'
+        self.code = 'GEX'
+        self.description = '''Gamma Exposure'''
+        self.from_date = from_date   
+        
+        #Data and model parameters
+        self.benchmark = benchmark
+        self.data = data
+        self.upper = 0
+        self.lower = 0
+
+        self.above_up = -1
+        self.below_low = 1
+        self.other = 0
+        
+        ModelAdmin.__init__(self)
+    
+    def indicator(self):
+
+        data = self.data.copy()[[self.benchmark,'gex']]
+        data.columns = [self.benchmark, self.code]
+
+        data.loc[data[self.code]>self.upper, 'SIGNAL'] = self.above_up
+        data.loc[data[self.code]<self.lower, 'SIGNAL'] = self.below_low
+        data['SIGNAL'] = data['SIGNAL'].fillna(self.other)
+        data = data.dropna()
+        self.model_data = data
+        self.signal = data[['SIGNAL']]
+        self.signal.columns = [self.code]
+
+        self.axis = {0:[self.benchmark],
+                     1:['GEX'], 
+                     2:['GEX']}
+
+        self.last_stats = data.iloc[-1]
+        self.last_update = data.index[-1]
+        return data
