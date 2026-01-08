@@ -262,17 +262,29 @@ class ModelAdmin:
         )
 
         return fig
+    
+    def to_dict(self):
+        dic = {}
+        for param in self.params:
+            dic[param] = getattr(self, param)
+        return dic
+
+    def from_dict(self, dic):
+        for key, value in dic.items():
+            setattr(self, key, value)
+        return self
 
 
 #Composite model class
 class Composite(ModelAdmin):
-    def __init__(self, models:list, benchmark='SPY', from_date='2022-05-16 00:00'):
+    def __init__(self, models:list, data, benchmark='SPY', from_date='2022-05-16 00:00'):
         #Meta information
         self.name = 'Composite Traffic Light'
         self.code = 'COMPOSITE'
         self.description = '''Composite model based on aggregate of signals'''
         self.from_date = from_date
         self.status = 'Not Loaded'
+        self.params = ['upper', 'lower', 'above_up', 'below_low']
 
         #Data and model parameters
         self.benchmark = benchmark
@@ -283,7 +295,7 @@ class Composite(ModelAdmin):
         self.other = 0
 
         #Available models
-        self.data_obj = Data(benchmark=self.benchmark)
+        self.data_obj = data
         self.models_list = models
         self.models = {}
 
@@ -292,11 +304,11 @@ class Composite(ModelAdmin):
 
 
     def load_models(self):
-        self.data_obj.load_data()
+        #self.data_obj.load_data()
         if self.status == 'Not Loaded':
 
             for model in self.models_list:
-                obj = model(self.data_obj.data, benchmark=self.benchmark, from_date=self.from_date)
+                obj = model(self.data_obj, benchmark=self.benchmark, from_date=self.from_date)
                 obj.indicator()
                 self.models[obj.code] = obj
 
@@ -312,7 +324,7 @@ class Composite(ModelAdmin):
 
     
     def refresh_models(self):
-        self.data_obj.load_data()
+        #self.data_obj.load_data()
         if hasattr(self, 'signal_data'):
             delattr(self, 'signal_data')
 
@@ -334,7 +346,7 @@ class Composite(ModelAdmin):
         
         data['SUMCOMP'] = data.sum(axis=1)
         data = data[['SUMCOMP']]
-        comp_data = self.data_obj.data[[self.benchmark]]
+        comp_data = self.data_obj[[self.benchmark]]
         data = data.merge(comp_data, how='left', left_index=True, right_index=True)
         data.columns = [self.code, self.benchmark]
 
@@ -370,6 +382,24 @@ class Composite(ModelAdmin):
             api_data[model] = self.models[model].api()
 
         return api_data
+    
+    def to_dict(self):
+        dic={}
+        for param in self.params:
+            dic[param] = getattr(self, param)
+        dic['models'] = {name: model.to_dict() for name, model in self.models.items()}
+
+        return dic
+    
+    def from_dict(self, dic):
+        for param in self.params:
+            setattr(self, param, dic[param])
+        
+        model_data = dic.get('models', {})
+        for name, model_dict in model_data.items():
+            self.models[name].from_dict(model_dict)
+        
+        return self
 
 
         
@@ -381,7 +411,8 @@ class VolSpread(ModelAdmin):
         self.code = 'VOLSPREAD'
         self.description = '''Spread between realized daily volatility on 1-min intervals and the 1-day VIX index'''
         self.from_date = from_date   
-        
+        self.params = ['upper', 'lower', 'avg_window', 'above_up', 'below_low']
+
         #Data and model parameters
         self.benchmark = benchmark
         self.data = data
@@ -422,7 +453,8 @@ class VolAutocorr(ModelAdmin):
         self.name = 'Volatility Autocorrelation'
         self.code = 'VOLAUTOCORR'
         self.description = '''Autocorrelation of realized daily volatility on 1-min intervals'''
-        self.from_date = from_date   
+        self.from_date = from_date
+        self.params = ['upper', 'lower', 'lag', 'above_up', 'below_low']
         
         #Data and model parameters
         self.benchmark = benchmark
@@ -464,7 +496,8 @@ class VixSpread(ModelAdmin):
         self.name = 'VIX - VVIX Spread'
         self.code = 'VIXVVIX'
         self.description = '''Spread between VVIX and VIX index'''
-        self.from_date = from_date   
+        self.from_date = from_date
+        self.params = ['upper', 'lower', 'avg_window', 'above_up', 'below_low']   
         
         #Data and model parameters
         self.benchmark = benchmark
@@ -509,12 +542,14 @@ class GEX(ModelAdmin):
         self.code = 'GEX'
         self.description = '''Gamma Exposure'''
         self.from_date = from_date   
-        
+        self.params = ['upper', 'lower', 'above_up', 'below_low']
+
         #Data and model parameters
         self.benchmark = benchmark
         self.data = data
         self.upper = 0
         self.lower = 0
+
 
         self.above_up = -1
         self.below_low = 1

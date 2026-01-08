@@ -10,12 +10,19 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, 'models')
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
-obj = models.Composite([
-                        models.VolSpread,
-                        models.VolAutocorr,
-                        models.VixSpread, 
-                        models.GEX
-                    ])
+#obj = models.Composite([
+#                        models.VolSpread,
+#                        models.VolAutocorr,
+#                        models.VixSpread, 
+#                        models.GEX
+#                    ])
+
+data_obj = models.Data()
+
+MODEL_LIST  = [models.VolSpread, 
+               models.VolAutocorr, 
+               models.VixSpread, 
+               models.GEX]
 
 def saved_models():
     models = [{'label':x, 'value':x} for x in os.listdir(MODELS_DIR)]
@@ -32,7 +39,7 @@ signals={
         0:'Yellow', 
         }
 
-def composite_inputs():
+def composite_inputs(obj):
     code='COMPOSITE'
     conta = dbc.Container([
         dbc.Row([
@@ -98,7 +105,7 @@ def composite_inputs():
     ])
     return conta
 
-def volspread_inputs():
+def volspread_inputs(obj):
     code='VOLSPREAD'
     conta = dbc.Container([
         dbc.Row([
@@ -168,7 +175,7 @@ def volspread_inputs():
     ])
     return conta
 
-def volautocorr_inputs():
+def volautocorr_inputs(obj):
     code='VOLAUTOCORR'
     conta = dbc.Container([
         dbc.Row([
@@ -226,7 +233,7 @@ def volautocorr_inputs():
     ])
     return conta
 
-def vixvvix_inputs():
+def vixvvix_inputs(obj):
     code='VIXVVIX'
     conta = dbc.Container([
         dbc.Row([
@@ -297,7 +304,7 @@ def vixvvix_inputs():
     return conta
 
 
-def gex_inputs():
+def gex_inputs(obj):
     code='GEX'
     conta = dbc.Container([
         dbc.Row([
@@ -366,6 +373,7 @@ def main_display(inputs=None):
     return row
 
 app.layout = html.Div([
+    dcc.Store(id='session-store', storage_type='session'),
     # 1. The Navbar sits here, independent of the content container
     dbc.Navbar(
         dbc.Container(
@@ -388,11 +396,16 @@ app.layout = html.Div([
     ], fluid=True) # fluid=True allows the graphs below to be wide
 ], style={'margin': '0px', 'padding': '0px'}) # Removes tiny browser gaps at the edges
 
-@app.callback(Output("main-content", "children"), Input("loading-initialization", "id"))
+@app.callback(Output("main-content", "children"),
+              Output('session-store', 'data'), 
+              Input("loading-initialization", "id"))
 def initialize_app(_):
+    data_obj.load_data()
+    obj = models.Composite(MODEL_LIST, data_obj.data)
     obj.load_models()
     obj.indicator()
-    return [
+
+    layout_content = [
         dbc.Row([
             dbc.Col([dbc.Select(size='sm', id='select-model', options=saved_models()),
                      html.P('Loaded default', id='loaded-status')], className='col-2'),
@@ -410,27 +423,42 @@ def initialize_app(_):
         ], id="tabs", active_tab="COMPOSITE", className="mb-3 mt-3"),
         html.Div(id="tabs-content")
     ]
+    return layout_content, obj.to_dict()
 
-@app.callback(Output("tabs-content", "children"), Input("tabs", "active_tab"))
-def render_content(active_tab):
+@app.callback(Output("tabs-content", "children"), 
+              Input("tabs", "active_tab"), 
+              State('session-store', 'data'))
+def render_content(active_tab, session_store):
+    print(session_store)
+    obj = models.Composite(MODEL_LIST, data_obj.data)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
     if active_tab == "VOLSPREAD":
-        return main_display(inputs=volspread_inputs())
+        return main_display(inputs=volspread_inputs(obj))
     elif active_tab == "VOLAUTOCORR":
-        return main_display(inputs=volautocorr_inputs())
+        return main_display(inputs=volautocorr_inputs(obj))
     elif active_tab == "VIXVVIX":
-        return main_display(inputs=vixvvix_inputs())
+        return main_display(inputs=vixvvix_inputs(obj))
     elif active_tab== "GEX":
-        return main_display(inputs=gex_inputs())
+        return main_display(inputs=gex_inputs(obj))
     elif active_tab == "COMPOSITE":
-        return main_display(inputs=composite_inputs())
+        return main_display(inputs=composite_inputs(obj))
          
     return html.P("No tab selected")
 
 @app.callback(
     Output('indicator-chart', 'figure'),
-    Input('tabs', 'active_tab')
-)
-def update_chart(active_tab):
+    Input('tabs', 'active_tab'),
+    State('session-store', 'data'))
+
+def update_chart(active_tab, session_store):
+    obj = models.Composite(MODEL_LIST, data_obj)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
     if active_tab == "COMPOSITE":
         fig = obj.plot_indicator_plotly()
         return fig
