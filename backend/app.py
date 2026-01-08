@@ -5,6 +5,10 @@ import pickle
 import os
 
 
+# Get the directory where app.py actually lives
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODELS_DIR = os.path.join(BASE_DIR, 'models')
+
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
 obj = models.Composite([
                         models.VolSpread,
@@ -14,7 +18,7 @@ obj = models.Composite([
                     ])
 
 def saved_models():
-    models = [{'label':x, 'value':x} for x in os.listdir('models/')]
+    models = [{'label':x, 'value':x} for x in os.listdir(MODELS_DIR)]
     return models
 
 colors={
