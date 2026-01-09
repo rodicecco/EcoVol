@@ -22,7 +22,7 @@ plt.rcParams.update({'font.size': 8})
 #Class to gather data necessary to run all models
 class Data:
 
-    def __init__(self, from_date='2022-05-16 00:00', benchmark='SPY'):
+    def __init__(self, from_date='2022-05-16 00:00', benchmark='GSPC.INDX'):
         #Initial date for loading data
         self.from_date = from_date
         self.benchmark = benchmark
@@ -38,7 +38,8 @@ class Data:
 
         with admin.Database('', []).engine().connect() as conn:
             query = f'''SELECT date, {driver} FROM historical WHERE symbol = '{symbol}' 
-                        AND date > '{self.from_date}';'''
+                        AND date > '{self.from_date}'
+                        ORDER BY date;'''
             data = pd.read_sql(query, conn)
         
         data.set_index('date', inplace=True)
@@ -125,6 +126,7 @@ class ModelAdmin:
 
         #Plot parameters
         self.view_ratios = [2, 0.5, 0.5]
+        self.color_map = {-1:'red', 1:'green', 0:'yellow'}
     
     def api(self):
         if hasattr(self, 'model_data'):
@@ -166,9 +168,9 @@ class ModelAdmin:
         sec_main_ax.grid(False)
 
         light_ax = axes[1]
-        light_ax.fill_between(data.index, 1, color='yellow', alpha=0.5, where=data['SIGNAL']==self.other)
-        light_ax.fill_between(data.index, 1, color='green', alpha=0.5, where=data['SIGNAL']==self.above_up)
-        light_ax.fill_between(data.index, 1, color='red', alpha=0.5, where=data['SIGNAL']==self.below_low)
+        light_ax.fill_between(data.index, 1, color=self.color_map[self.other], alpha=0.5, where=data['SIGNAL']==self.other)
+        light_ax.fill_between(data.index, 1, color=self.color_map[self.above_up], alpha=0.5, where=data['SIGNAL']==self.above_up)
+        light_ax.fill_between(data.index, 1, color=self.color_map[self.below_low], alpha=0.5, where=data['SIGNAL']==self.below_low)
         light_ax.grid(False)
 
         supp_ax = axes[2]
@@ -224,7 +226,7 @@ class ModelAdmin:
             )
 
         #Light axis
-        color_map = {self.other: 'yellow', self.above_up: 'green', self.below_low: 'red'}
+        color_map = {self.other: self.color_map[self.other], self.above_up: self.color_map[self.above_up], self.below_low: self.color_map[self.below_low]}
         bar_colors = [color_map.get(x, 'yellow') for x in data['SIGNAL']]
 
         fig.add_trace(
@@ -277,7 +279,7 @@ class ModelAdmin:
 
 #Composite model class
 class Composite(ModelAdmin):
-    def __init__(self, models:list, data, benchmark='SPY', from_date='2022-05-16 00:00'):
+    def __init__(self, models:list, data, benchmark='GSPC.INDX', from_date='2022-05-16 00:00'):
         #Meta information
         self.name = 'Composite Traffic Light'
         self.code = 'COMPOSITE'
@@ -469,7 +471,7 @@ class VolAutocorr(ModelAdmin):
         ModelAdmin.__init__(self)
     
     def indicator(self):
-
+        #Autocorrelation with last observation over a self.lag period
         data = self.data.copy()[[self.benchmark,'ACTVOL']]
         data['AUTOCORR'] = data['ACTVOL'].rolling(window=self.lag).apply(lambda x: x.autocorr(lag=1))
 

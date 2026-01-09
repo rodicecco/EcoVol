@@ -1,8 +1,10 @@
 from dash import Dash, html, dcc, Input, Output, State
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import models
 import pickle
 import os
+import json
 
 
 # Get the directory where app.py actually lives
@@ -29,13 +31,13 @@ def saved_models():
     return models
 
 colors={
-        -1:'success', 
-        1:'danger', 
+        1:'success', 
+        -1:'danger', 
         0:'warning', 
         }
 signals={
-        -1:'Green', 
-        1:'Red', 
+        1:'Green', 
+        -1:'Red', 
         0:'Yellow', 
         }
 
@@ -48,19 +50,19 @@ def composite_inputs(obj):
                 ]),
         dbc.Row([
             dbc.Col(html.P('Vol-VIX Spread')), 
-            dbc.Col(dbc.Badge(signals[obj.models['VOLSPREAD'].last_stats['SIGNAL']], color=colors[obj.models['VOLSPREAD'].last_stats['SIGNAL']], className="me-1", id=f"{code}-signal-badge"))
+            dbc.Col(dbc.Badge(signals[obj.models['VOLSPREAD'].last_stats['SIGNAL']], color=colors[obj.models['VOLSPREAD'].last_stats['SIGNAL']], className="me-1", id=f"VOLSPREAD-signal-badge"))
                 ]),
         dbc.Row([
             dbc.Col(html.P('Autocorrelation')), 
-            dbc.Col(dbc.Badge(signals[obj.models['VOLAUTOCORR'].last_stats['SIGNAL']], color=colors[obj.models['VOLAUTOCORR'].last_stats['SIGNAL']], className="me-1", id=f"{code}-signal-badge"))
+            dbc.Col(dbc.Badge(signals[obj.models['VOLAUTOCORR'].last_stats['SIGNAL']], color=colors[obj.models['VOLAUTOCORR'].last_stats['SIGNAL']], className="me-1", id=f"VOLAUTOCORR-signal-badge"))
                 ]),
         dbc.Row([
             dbc.Col(html.P('VIX-VVIX Spread')), 
-            dbc.Col(dbc.Badge(signals[obj.models['VIXVVIX'].last_stats['SIGNAL']], color=colors[obj.models['VIXVVIX'].last_stats['SIGNAL']], className="me-1", id=f"{code}-signal-badge"))
+            dbc.Col(dbc.Badge(signals[obj.models['VIXVVIX'].last_stats['SIGNAL']], color=colors[obj.models['VIXVVIX'].last_stats['SIGNAL']], className="me-1", id=f"VIXVVIX-signal-badge"))
                 ]),
         dbc.Row([
             dbc.Col(html.P('GEX')), 
-            dbc.Col(dbc.Badge(signals[obj.models['GEX'].last_stats['SIGNAL']], color=colors[obj.models['GEX'].last_stats['SIGNAL']], className="me-1", id=f"{code}-signal-badge"))
+            dbc.Col(dbc.Badge(signals[obj.models['GEX'].last_stats['SIGNAL']], color=colors[obj.models['GEX'].last_stats['SIGNAL']], className="me-1", id=f"GEX-signal-badge"))
                 ]),
         dbc.Row([
             dbc.Col(html.P('Last Update')), 
@@ -81,9 +83,9 @@ def composite_inputs(obj):
             dbc.Col(html.P('Above Upper')), 
             dbc.Col(dbc.Select(size='sm',id=f'{code}-above-upper', 
                                options= [
-                                   {'label':'Red', 'value':1}, 
+                                   {'label':'Red', 'value':-1}, 
                                    {'label':'Yellow', 'value':0}, 
-                                   {'label':'Green', 'value':-1}
+                                   {'label':'Green', 'value':1}
                                    ],
                                value=obj.above_up))
                 ]),
@@ -91,9 +93,9 @@ def composite_inputs(obj):
             dbc.Col(html.P('Below Lower')), 
             dbc.Col(dbc.Select(size='sm',id=f'{code}-below-lower', 
                                options= [
-                                   {'label':'Red', 'value':1}, 
+                                   {'label':'Red', 'value':-1}, 
                                    {'label':'Yellow', 'value':0}, 
-                                   {'label':'Green', 'value':-1}
+                                   {'label':'Green', 'value':1}
                                    ],
                                value=obj.below_low))
                 ]),
@@ -151,9 +153,9 @@ def volspread_inputs(obj):
             dbc.Col(html.P('Above Upper')), 
             dbc.Col(dbc.Select(size='sm',id=f'{code}-above-upper', 
                                options= [
-                                   {'label':'Red', 'value':1}, 
+                                   {'label':'Red', 'value':-1}, 
                                    {'label':'Yellow', 'value':0}, 
-                                   {'label':'Green', 'value':-1}
+                                   {'label':'Green', 'value':1}
                                    ],
                                value=obj.models[code].above_up))
                 ]),
@@ -161,9 +163,9 @@ def volspread_inputs(obj):
             dbc.Col(html.P('Below Lower')), 
             dbc.Col(dbc.Select(size='sm',id=f'{code}-below-lower', 
                                options= [
-                                   {'label':'Red', 'value':1}, 
+                                   {'label':'Red', 'value':-1}, 
                                    {'label':'Yellow', 'value':0}, 
-                                   {'label':'Green', 'value':-1}
+                                   {'label':'Green', 'value':1}
                                    ],
                                value=obj.models[code].below_low))
                 ]),
@@ -209,9 +211,9 @@ def volautocorr_inputs(obj):
             dbc.Col(html.P('Above Upper')), 
             dbc.Col(dbc.Select(size='sm',id=f'{code}-above-upper', 
                                options= [
-                                   {'label':'Red', 'value':1}, 
+                                   {'label':'Red', 'value':-1}, 
                                    {'label':'Yellow', 'value':0}, 
-                                   {'label':'Green', 'value':-1}
+                                   {'label':'Green', 'value':1}
                                    ],
                                value=obj.models[code].above_up))
                 ]),
@@ -219,9 +221,9 @@ def volautocorr_inputs(obj):
             dbc.Col(html.P('Below Lower')), 
             dbc.Col(dbc.Select(size='sm',id=f'{code}-below-lower', 
                                options= [
-                                   {'label':'Red', 'value':1}, 
+                                   {'label':'Red', 'value':-1}, 
                                    {'label':'Yellow', 'value':0}, 
-                                   {'label':'Green', 'value':-1}
+                                   {'label':'Green', 'value':1}
                                    ],
                                value=obj.models[code].below_low))
                 ]),
@@ -279,9 +281,9 @@ def vixvvix_inputs(obj):
             dbc.Col(html.P('Above Upper')), 
             dbc.Col(dbc.Select(size='sm',id=f'{code}-above-upper', 
                                options= [
-                                   {'label':'Red', 'value':1}, 
+                                   {'label':'Red', 'value':-1}, 
                                    {'label':'Yellow', 'value':0}, 
-                                   {'label':'Green', 'value':-1}
+                                   {'label':'Green', 'value':1}
                                    ],
                                value=obj.models[code].above_up))
                 ]),
@@ -289,9 +291,9 @@ def vixvvix_inputs(obj):
             dbc.Col(html.P('Below Lower')), 
             dbc.Col(dbc.Select(size='sm',id=f'{code}-below-lower', 
                                options= [
-                                   {'label':'Red', 'value':1}, 
+                                   {'label':'Red', 'value':-1}, 
                                    {'label':'Yellow', 'value':0}, 
-                                   {'label':'Green', 'value':-1}
+                                   {'label':'Green', 'value':1}
                                    ],
                                value=obj.models[code].below_low))
                 ]),
@@ -334,9 +336,9 @@ def gex_inputs(obj):
             dbc.Col(html.P('Above Upper')), 
             dbc.Col(dbc.Select(size='sm',id=f'{code}-above-upper', 
                                options= [
-                                   {'label':'Red', 'value':1}, 
+                                   {'label':'Red', 'value':-1}, 
                                    {'label':'Yellow', 'value':0}, 
-                                   {'label':'Green', 'value':-1}
+                                   {'label':'Green', 'value':1}
                                    ],
                                value=obj.models[code].above_up))
                 ]),
@@ -344,9 +346,9 @@ def gex_inputs(obj):
             dbc.Col(html.P('Below Lower')), 
             dbc.Col(dbc.Select(size='sm',id=f'{code}-below-lower', 
                                options= [
-                                   {'label':'Red', 'value':1}, 
+                                   {'label':'Red', 'value':-1}, 
                                    {'label':'Yellow', 'value':0}, 
-                                   {'label':'Green', 'value':-1}
+                                   {'label':'Green', 'value':1}
                                    ],
                                value=obj.models[code].below_low))
                 ]),
@@ -401,8 +403,17 @@ app.layout = html.Div([
               Input("loading-initialization", "id"))
 def initialize_app(_):
     data_obj.load_data()
+
+    path = os.path.join(MODELS_DIR, 'default.json') # os.listdir already includes .json
+
+
+    # 1. Load the JSON
+    with open(path, 'r') as f:
+        data_dict = json.load(f)
+
     obj = models.Composite(MODEL_LIST, data_obj.data)
     obj.load_models()
+    obj.from_dict(data_dict) 
     obj.indicator()
 
     layout_content = [
@@ -454,7 +465,7 @@ def render_content(active_tab, session_store):
     State('session-store', 'data'))
 
 def update_chart(active_tab, session_store):
-    obj = models.Composite(MODEL_LIST, data_obj)
+    obj = models.Composite(MODEL_LIST, data_obj.data)
     obj.load_models()
     obj.from_dict(session_store)
     obj.indicator()
@@ -474,22 +485,35 @@ def update_chart(active_tab, session_store):
     Output(f'VOLSPREAD-avg-ratio', 'children'),
     Output(f'VOLSPREAD-signal-badge', 'children'),
     Output(f'VOLSPREAD-signal-badge', 'color'),
+    Output(f'session-store', 'data', allow_duplicate=True), 
     Input(f'VOLSPREAD-submit-btn', 'n_clicks'),
     State(f'VOLSPREAD-avg-window', 'value'),
     State(f'VOLSPREAD-upper-band', 'value'),
     State(f'VOLSPREAD-lower-band', 'value'),
     State(f'VOLSPREAD-above-upper', 'value'),
     State(f'VOLSPREAD-below-lower', 'value'),
+    State(f'session-store', 'data'),
     prevent_initial_call=True
 )
-def update_volspread(n_clicks, avg_window, upper, lower, above_up, below_low):
+def update_volspread(n_clicks, avg_window, upper, lower, above_up, below_low, session_store):
+
+    obj = models.Composite(MODEL_LIST, data_obj.data)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
     obj.models['VOLSPREAD'].avg_window = avg_window
     obj.models['VOLSPREAD'].upper = upper
     obj.models['VOLSPREAD'].lower = lower
-    obj.models['VOLSPREAD'].above_up = above_up
-    obj.models['VOLSPREAD'].below_low = below_low
+    obj.models['VOLSPREAD'].above_up = int(above_up)
+    obj.models['VOLSPREAD'].below_low = int(below_low)
+    
     obj.refresh_models()
     obj.indicator()
+
+    session_store = obj.to_dict()
+
+
     fig = obj.models['VOLSPREAD'].plot_indicator_plotly()
     
     stats = obj.models['VOLSPREAD'].last_stats
@@ -500,29 +524,40 @@ def update_volspread(n_clicks, avg_window, upper, lower, above_up, below_low):
     signal_label = signals[stats['SIGNAL']]
     signal_color = colors[stats['SIGNAL']]
 
-    return fig, act_vol, vix_indx, ratio, avg_ratio, signal_label, signal_color
+    return fig, act_vol, vix_indx, ratio, avg_ratio, signal_label, signal_color, session_store
     
 @app.callback(
     Output(f'indicator-chart', 'figure', allow_duplicate=True),
     Output(f'VOLAUTOCORR-autocorr', 'children'),
     Output(f'VOLAUTOCORR-signal-badge', 'children'),
     Output(f'VOLAUTOCORR-signal-badge', 'color'),
+    Output(f'session-store', 'data', allow_duplicate=True), 
     Input(f'VOLAUTOCORR-submit-btn', 'n_clicks'),
     State(f'VOLAUTOCORR-lag', 'value'),
     State(f'VOLAUTOCORR-upper-band', 'value'),
     State(f'VOLAUTOCORR-lower-band', 'value'),
     State(f'VOLAUTOCORR-above-upper', 'value'),
     State(f'VOLAUTOCORR-below-lower', 'value'),
+    State(f'session-store', 'data'),
     prevent_initial_call=True
 )
-def update_volautocorr(n_clicks, lag, upper, lower, above_up, below_low):
+def update_volautocorr(n_clicks, lag, upper, lower, above_up, below_low, session_store):
+    obj = models.Composite(MODEL_LIST, data_obj.data)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
     obj.models['VOLAUTOCORR'].lag = lag
     obj.models['VOLAUTOCORR'].upper = upper
     obj.models['VOLAUTOCORR'].lower = lower
-    obj.models['VOLAUTOCORR'].above_up = above_up
-    obj.models['VOLAUTOCORR'].below_low = below_low
+    obj.models['VOLAUTOCORR'].above_up = int(above_up)
+    obj.models['VOLAUTOCORR'].below_low = int(below_low)
+
     obj.refresh_models()
     obj.indicator()
+
+    session_store = obj.to_dict()
+
     fig = obj.models['VOLAUTOCORR'].plot_indicator_plotly()
     
     stats = obj.models['VOLAUTOCORR'].last_stats
@@ -531,7 +566,7 @@ def update_volautocorr(n_clicks, lag, upper, lower, above_up, below_low):
     signal_label = signals[stats['SIGNAL']]
     signal_color = colors[stats['SIGNAL']]
 
-    return fig, autocorr, signal_label, signal_color
+    return fig, autocorr, signal_label, signal_color, session_store
 
 
 @app.callback(
@@ -542,22 +577,34 @@ def update_volautocorr(n_clicks, lag, upper, lower, above_up, below_low):
     Output(f'VIXVVIX-avg-diff', 'children'),
     Output(f'VIXVVIX-signal-badge', 'children'),
     Output(f'VIXVVIX-signal-badge', 'color'),
+    Output(f'session-store', 'data', allow_duplicate=True), 
     Input(f'VIXVVIX-submit-btn', 'n_clicks'),
     State(f'VIXVVIX-avg-window', 'value'),
     State(f'VIXVVIX-upper-band', 'value'),
     State(f'VIXVVIX-lower-band', 'value'),
     State(f'VIXVVIX-above-upper', 'value'),
     State(f'VIXVVIX-below-lower', 'value'),
+    State(f'session-store', 'data'),
     prevent_initial_call=True
 )
-def update_VIXVVIX(n_clicks, avg_window, upper, lower, above_up, below_low):
+def update_VIXVVIX(n_clicks, avg_window, upper, lower, above_up, below_low, session_store):
+
+    obj = models.Composite(MODEL_LIST, data_obj.data)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
     obj.models['VIXVVIX'].avg_window = avg_window
     obj.models['VIXVVIX'].upper = upper
     obj.models['VIXVVIX'].lower = lower
-    obj.models['VIXVVIX'].above_up = above_up
-    obj.models['VIXVVIX'].below_low = below_low
+    obj.models['VIXVVIX'].above_up = int(above_up)
+    obj.models['VIXVVIX'].below_low = int(below_low)
+    
     obj.refresh_models()
     obj.indicator()
+
+    session_store = obj.to_dict()
+
     fig = obj.models['VIXVVIX'].plot_indicator_plotly()
     
     stats = obj.models['VIXVVIX'].last_stats
@@ -568,86 +615,181 @@ def update_VIXVVIX(n_clicks, avg_window, upper, lower, above_up, below_low):
     signal_label = signals[stats['SIGNAL']]
     signal_color = colors[stats['SIGNAL']]
 
-    return fig, vix, vvix, dif, avg_dif, signal_label, signal_color
+    return fig, vix, vvix, dif, avg_dif, signal_label, signal_color, session_store
+
+@app.callback(
+    Output(f'indicator-chart', 'figure', allow_duplicate=True),
+    Output(f'GEX-gex', 'children'),
+    Output(f'GEX-signal-badge', 'children'),
+    Output(f'GEX-signal-badge', 'color'),
+    Output(f'session-store', 'data', allow_duplicate=True), 
+    Input(f'GEX-submit-btn', 'n_clicks'),
+    State(f'GEX-upper-band', 'value'),
+    State(f'GEX-lower-band', 'value'),
+    State(f'GEX-above-upper', 'value'),
+    State(f'GEX-below-lower', 'value'),
+    State(f'session-store', 'data'),
+    prevent_initial_call=True
+)
+def update_GEX(n_clicks,  upper, lower, above_up, below_low, session_store):
+
+    obj = models.Composite(MODEL_LIST, data_obj.data)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
+    obj.models['GEX'].upper = upper
+    obj.models['GEX'].lower = lower
+    obj.models['GEX'].above_up = int(above_up)
+    obj.models['GEX'].below_low = int(below_low)
+    
+    obj.refresh_models()
+    obj.indicator()
+
+    session_store = obj.to_dict()
+
+    fig = obj.models['GEX'].plot_indicator_plotly()
+    
+    stats = obj.models['GEX'].last_stats
+    gex = stats['GEX']
+
+    signal_label = signals[stats['SIGNAL']]
+    signal_color = colors[stats['SIGNAL']]
+
+    return fig, gex, signal_label, signal_color, session_store
+
+
+
+
 
 @app.callback(
     Output(f'indicator-chart', 'figure', allow_duplicate=True),
     Output(f'COMPOSITE-signal-badge', 'children'),
-    Output(f'COMPOSITE-signal-badge', 'color'),
+    Output(f'COMPOSITE-signal-badge', 'color'),  
+    Output(f'session-store', 'data', allow_duplicate=True), 
     Input(f'COMPOSITE-submit-btn', 'n_clicks'),
     State(f'COMPOSITE-upper-band', 'value'),
     State(f'COMPOSITE-lower-band', 'value'),
     State(f'COMPOSITE-above-upper', 'value'),
     State(f'COMPOSITE-below-lower', 'value'),
+    State(f'session-store', 'data'),
     prevent_initial_call=True
 )
-def update_COMPOSITE(n_clicks,  upper, lower, above_up, below_low):
+def update_COMPOSITE(n_clicks,  upper, lower, above_up, below_low, session_store):
+
+    obj = models.Composite(MODEL_LIST, data_obj.data)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
     obj.upper = upper
     obj.lower = lower
-    obj.above_up = above_up
-    obj.below_low = below_low
+    obj.above_up = int(above_up)
+    obj.below_low = int(below_low)
+
     obj.refresh_models()
     obj.indicator()
+
+    session_store = obj.to_dict()
+
     fig = obj.plot_indicator_plotly()
     
     stats = obj.last_stats
     signal_label = signals[stats['SIGNAL']]
     signal_color = colors[stats['SIGNAL']]
 
-    return fig, signal_label, signal_color
+    return fig, signal_label, signal_color, session_store
 
 @app.callback(
     Output(f'saved-status', 'children'),
     Input(f'save-model', 'n_clicks'),
     State(f'save-as', 'value'),
+    State(f'session-store', 'data'),
     prevent_initial_call=True)
-def save_model(n_clicks, save_as):
-    path='models/'
-    try:
-        with open(path+save_as+'.pkl', 'wb') as f:
-            pickle.dump(obj, f)
-        return f'Succesfully saved as {save_as}'
-    except:
-        return "Error saving file"
+def save_model(n_clicks, save_as, session_store):
+    # 1. Guard against initial load
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
 
+    if not save_as:
+        return "Please provide a filename"
+
+    try:
+        # 2. Setup Object (Skip .indicator() if it's just for math)
+        obj = models.Composite(MODEL_LIST, data_obj.data)
+        obj.load_models()
+        obj.from_dict(session_store)
+        
+        # 3. Construct Path correctly
+        path = os.path.join(MODELS_DIR, f"{save_as}.json")
+        
+        # 4. Save using 'w' (Text mode)
+        with open(path, 'w') as f:
+            json.dump(obj.to_dict(), f, indent=4)
+            
+        return f'Successfully saved as {save_as}'
+
+    except Exception as e:
+        # Log the actual error to your terminal so you can debug
+        print(f"Save Error: {e}") 
+        return f"Error saving file: {str(e)}"
 
 @app.callback(
     Output('loaded-status', 'children'),
-    Output('tabs-content', 'children', allow_duplicate=True), # Refresh the active tab UI
-    Output('indicator-chart', 'figure', allow_duplicate=True), # Refresh the chart
+    Output('tabs-content', 'children', allow_duplicate=True), 
+    Output('indicator-chart', 'figure', allow_duplicate=True),
+    Output('session-store', 'data', allow_duplicate=True), # CRITICAL: Update the store
     Input('load-model', 'n_clicks'),
     State('select-model', 'value'),
-    State('tabs', 'active_tab'), # Know which tab we are on
+    State('tabs', 'active_tab'),
     prevent_initial_call=True
 )
 def load_model(n_clicks, select_model, active_tab):
-    path = 'models/'
+    if not n_clicks or not select_model:
+        raise PreventUpdate
+
+    path = os.path.join(MODELS_DIR, select_model) # os.listdir already includes .json
+
     try:
-        with open(path + select_model, 'rb') as f:
-            temp = pickle.load(f)
+        # 1. Load the JSON
+        with open(path, 'r') as f:
+            data_dict = json.load(f)
         
-        global obj
-        obj = temp
-        obj.indicator()
+        # 2. Reconstruct and Calculate
+        new_obj = models.Composite(MODEL_LIST, data_obj.data)
+        new_obj.load_models() # Ensure sub-models are initialized
+        new_obj.from_dict(data_dict) 
+        new_obj.indicator() 
 
-        # 1. Regenerate the input UI for the current tab using the NEW obj
+        # 3. Prepare the specific UI for the current tab
         if active_tab == "VOLSPREAD":
-            new_inputs = main_display(inputs=volspread_inputs())
-            fig = obj.models['VOLSPREAD'].plot_indicator_plotly()
+            new_ui = volspread_inputs(new_obj)
+            fig = new_obj.models['VOLSPREAD'].plot_indicator_plotly()
         elif active_tab == "VOLAUTOCORR":
-            new_inputs = main_display(inputs=volautocorr_inputs())
-            fig = obj.models['VOLAUTOCORR'].plot_indicator_plotly()
+            new_ui = volautocorr_inputs(new_obj)
+            fig = new_obj.models['VOLAUTOCORR'].plot_indicator_plotly()
         elif active_tab == "VIXVVIX":
-            new_inputs = main_display(inputs=vixvvix_inputs())
-            fig = obj.models['VIXVVIX'].plot_indicator_plotly()
-        else:
-            new_inputs = main_display(inputs=composite_inputs())
-            fig = obj.plot_indicator_plotly()
+            new_ui = vixvvix_inputs(new_obj)
+            fig = new_obj.models['VIXVVIX'].plot_indicator_plotly()
+        elif active_tab == "GEX":
+            new_ui = gex_inputs(new_obj)
+            fig = new_obj.models['GEX'].plot_indicator_plotly()
+        else: # COMPOSITE
+            new_ui = composite_inputs(new_obj)
+            fig = new_obj.plot_indicator_plotly()
 
-        return f'Successfully loaded {select_model}', new_inputs, fig
+        # 4. Return everything: Status, UI, Chart, and updated Store
+        return (
+            f'Successfully loaded {select_model}', 
+            main_display(inputs=new_ui), 
+            fig, 
+            new_obj.to_dict() 
+        )
         
     except Exception as e:
-        return f"Error loading file: {str(e)}", dash.no_update, dash.no_update
+        import traceback
+        print(traceback.format_exc()) # Prints the full error to your terminal
+        return f"Error: {str(e)}"
 
 
 
