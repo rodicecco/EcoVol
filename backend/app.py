@@ -5,7 +5,7 @@ import models
 import pickle
 import os
 import json
-
+from flask_caching import Cache
 
 # Get the directory where app.py actually lives
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -19,7 +19,27 @@ app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callb
 #                        models.GEX
 #                    ])
 
-data_obj = models.Data()
+
+# Get the absolute path for the cache folder
+CACHE_DIR = os.path.join(BASE_DIR, 'flask_cache')
+if not os.path.exists(CACHE_DIR):
+    os.makedirs(CACHE_DIR)
+
+cache = Cache(app.server, config={
+    'CACHE_TYPE': 'FileSystemCache',
+    'CACHE_DIR': CACHE_DIR,
+    'CACHE_DEFAULT_TIMEOUT': 3600  # 1 hour (in seconds)
+})
+
+@cache.memoize(timeout=1800) # Cache for 30 minutes
+def fetch_market_data():
+    print("CACHE MISS: Fetching fresh data from database...")
+    data_obj = models.Data()
+    data_obj.load_data()
+    return data_obj.data # This dictionary is what gets saved to disk
+
+
+#data_obj = models.Data()
 
 MODEL_LIST  = [models.VolSpread, 
                models.VolAutocorr, 
@@ -402,7 +422,7 @@ app.layout = html.Div([
               Output('session-store', 'data'), 
               Input("loading-initialization", "id"))
 def initialize_app(_):
-    data_obj.load_data()
+    current_data = fetch_market_data()
 
     path = os.path.join(MODELS_DIR, 'default.json') # os.listdir already includes .json
 
@@ -411,7 +431,7 @@ def initialize_app(_):
     with open(path, 'r') as f:
         data_dict = json.load(f)
 
-    obj = models.Composite(MODEL_LIST, data_obj.data)
+    obj = models.Composite(MODEL_LIST, current_data)
     obj.load_models()
     obj.from_dict(data_dict) 
     obj.indicator()
@@ -440,8 +460,10 @@ def initialize_app(_):
               Input("tabs", "active_tab"), 
               State('session-store', 'data'))
 def render_content(active_tab, session_store):
+
+    current_data = fetch_market_data()
     print(session_store)
-    obj = models.Composite(MODEL_LIST, data_obj.data)
+    obj = models.Composite(MODEL_LIST, current_data)
     obj.load_models()
     obj.from_dict(session_store)
     obj.indicator()
@@ -465,7 +487,8 @@ def render_content(active_tab, session_store):
     State('session-store', 'data'))
 
 def update_chart(active_tab, session_store):
-    obj = models.Composite(MODEL_LIST, data_obj.data)
+    current_data = fetch_market_data()
+    obj = models.Composite(MODEL_LIST, current_data)
     obj.load_models()
     obj.from_dict(session_store)
     obj.indicator()
@@ -496,8 +519,8 @@ def update_chart(active_tab, session_store):
     prevent_initial_call=True
 )
 def update_volspread(n_clicks, avg_window, upper, lower, above_up, below_low, session_store):
-
-    obj = models.Composite(MODEL_LIST, data_obj.data)
+    current_data = fetch_market_data()
+    obj = models.Composite(MODEL_LIST, current_data)
     obj.load_models()
     obj.from_dict(session_store)
     obj.indicator()
@@ -542,7 +565,8 @@ def update_volspread(n_clicks, avg_window, upper, lower, above_up, below_low, se
     prevent_initial_call=True
 )
 def update_volautocorr(n_clicks, lag, upper, lower, above_up, below_low, session_store):
-    obj = models.Composite(MODEL_LIST, data_obj.data)
+    current_data = fetch_market_data()
+    obj = models.Composite(MODEL_LIST, current_data)
     obj.load_models()
     obj.from_dict(session_store)
     obj.indicator()
@@ -588,8 +612,8 @@ def update_volautocorr(n_clicks, lag, upper, lower, above_up, below_low, session
     prevent_initial_call=True
 )
 def update_VIXVVIX(n_clicks, avg_window, upper, lower, above_up, below_low, session_store):
-
-    obj = models.Composite(MODEL_LIST, data_obj.data)
+    current_data = fetch_market_data()
+    obj = models.Composite(MODEL_LIST, current_data)
     obj.load_models()
     obj.from_dict(session_store)
     obj.indicator()
@@ -632,8 +656,8 @@ def update_VIXVVIX(n_clicks, avg_window, upper, lower, above_up, below_low, sess
     prevent_initial_call=True
 )
 def update_GEX(n_clicks,  upper, lower, above_up, below_low, session_store):
-
-    obj = models.Composite(MODEL_LIST, data_obj.data)
+    current_data = fetch_market_data()
+    obj = models.Composite(MODEL_LIST, current_data)
     obj.load_models()
     obj.from_dict(session_store)
     obj.indicator()
@@ -676,8 +700,8 @@ def update_GEX(n_clicks,  upper, lower, above_up, below_low, session_store):
     prevent_initial_call=True
 )
 def update_COMPOSITE(n_clicks,  upper, lower, above_up, below_low, session_store):
-
-    obj = models.Composite(MODEL_LIST, data_obj.data)
+    current_data = fetch_market_data()
+    obj = models.Composite(MODEL_LIST, current_data)
     obj.load_models()
     obj.from_dict(session_store)
     obj.indicator()
@@ -715,8 +739,9 @@ def save_model(n_clicks, save_as, session_store):
         return "Please provide a filename"
 
     try:
+        current_data = fetch_market_data()
         # 2. Setup Object (Skip .indicator() if it's just for math)
-        obj = models.Composite(MODEL_LIST, data_obj.data)
+        obj = models.Composite(MODEL_LIST, current_data)
         obj.load_models()
         obj.from_dict(session_store)
         
@@ -756,7 +781,8 @@ def load_model(n_clicks, select_model, active_tab):
             data_dict = json.load(f)
         
         # 2. Reconstruct and Calculate
-        new_obj = models.Composite(MODEL_LIST, data_obj.data)
+        current_data = fetch_market_data()
+        new_obj = models.Composite(MODEL_LIST, current_data)
         new_obj.load_models() # Ensure sub-models are initialized
         new_obj.from_dict(data_dict) 
         new_obj.indicator() 
