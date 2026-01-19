@@ -43,6 +43,18 @@
             "lower": -0.5,
             "above_up": -1,
             "below_low": 1
+        },
+        "MOVE": {
+            "upper": 40,
+            "lower": 25,
+            "above_up": -1,
+            "below_low": 1
+        },
+        "TED": {
+            "upper": 0.5,
+            "lower": 0.25,
+            "above_up": -1,
+            "below_low": 1
         }
     }
 }

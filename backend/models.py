@@ -56,6 +56,31 @@ class Data:
 
         return data
 
+    #Pull raw historical data from loaded database
+    def get_econ_historical(self, id, append=True):
+
+        with admin.Database('', []).engine().connect() as conn:
+            query = f'''SELECT date, value FROM econ_hist WHERE id = '{id}' 
+                        AND date > '{self.from_date}'
+                        ORDER BY date;'''
+            data = pd.read_sql(query, conn)
+        
+        data.set_index('date', inplace=True)
+        data.index = pd.to_datetime(data.index)
+        data = data[['value']]
+        data.columns = [id]
+
+        if append is True:
+            if self.check_data() is True:
+                if id not in self.data.columns:
+                    self.data = self.data.merge(data, how='left', left_index=True, right_index=True)
+            else:
+                self.data = data
+
+        return data
+
+
+
     #Calculated historical volatility
     def volatility(self, symbol='SPY', start_time='09:30', end_time='16:00', append=True):
         name = 'ACTVOL'
@@ -116,6 +141,9 @@ class Data:
         self.get_historical('SKEW.INDX')
         self.get_historical('VIX9D.INDX')
         self.get_historical('VIX3M.INDX')
+        self.get_historical('MOVE.INDX')
+        self.get_econ_historical('DTB3')
+        self.get_econ_historical('SOFR90DAYAVG')
         self.volatility()
         self.get_gex()
         return True
@@ -669,6 +697,144 @@ class TermSt(ModelAdmin):
         self.axis = {0:[self.benchmark],
                      1:['VIX9D', 'VIX3M'], 
                      2:['RATIO']}
+
+        self.last_stats = data.iloc[-1]
+        self.last_update = data.index[-1]
+        return data
+    
+
+class MOVEVix(ModelAdmin):
+    def __init__(self, data, benchmark='SPY', from_date='2022-05-16 00:00'):
+        #Meta information
+        self.name = 'MOVE'
+        self.code = 'MOVE'
+        self.description = '''MOVE-Vix Spread'''
+        self.from_date = from_date   
+        self.params = ['upper', 'lower', 'above_up', 'below_low']
+
+        #Data and model parameters
+        self.benchmark = benchmark
+        self.data = data
+        self.upper = 40
+        self.lower = 25
+
+
+        self.above_up = -1
+        self.below_low = 1
+        self.other = 0
+        
+        ModelAdmin.__init__(self)
+    
+    def indicator(self):
+
+        data = self.data.copy()[[self.benchmark,'MOVE.INDX', 'VIX.INDX']]
+        data.columns = [self.benchmark, 'MOVE', 'VIX']
+        data['DIFF'] = data['MOVE'] - data['VIX']
+
+        data.loc[data['DIFF']>self.upper, 'SIGNAL'] = self.above_up
+        data.loc[data['DIFF']<self.lower, 'SIGNAL'] = self.below_low
+        data['SIGNAL'] = data['SIGNAL'].fillna(self.other)
+        data = data.dropna()
+        self.model_data = data
+        self.signal = data[['SIGNAL']]
+        self.signal.columns = [self.code]
+
+        self.axis = {0:[self.benchmark],
+                     1:['MOVE', 'VIX'], 
+                     2:['DIFF']}
+
+        self.last_stats = data.iloc[-1]
+        self.last_update = data.index[-1]
+        return data
+    
+
+class TEDSpread(ModelAdmin):
+    def __init__(self, data, benchmark='SPY', from_date='2022-05-16 00:00'):
+        #Meta information
+        self.name = 'TED'
+        self.code = 'TED'
+        self.description = '''TED Spread'''
+        self.from_date = from_date   
+        self.params = ['upper', 'lower', 'above_up', 'below_low']
+
+        #Data and model parameters
+        self.benchmark = benchmark
+        self.data = data
+        self.upper = 0.5
+        self.lower = 0.25
+
+
+        self.above_up = -1
+        self.below_low = 1
+        self.other = 0
+        
+        ModelAdmin.__init__(self)
+    
+    def indicator(self):
+
+        data = self.data.copy()[[self.benchmark,'SOFR90DAYAVG', 'DTB3']]
+        data.columns = [self.benchmark, '3MSOFR', '3MTBILL']
+        data['DIFF'] = data['3MSOFR'] - data['3MTBILL']
+
+        data.loc[data['DIFF']>self.upper, 'SIGNAL'] = self.above_up
+        data.loc[data['DIFF']<self.lower, 'SIGNAL'] = self.below_low
+        data['SIGNAL'] = data['SIGNAL'].fillna(self.other)
+        data = data.dropna()
+        self.model_data = data
+        self.signal = data[['SIGNAL']]
+        self.signal.columns = [self.code]
+
+        self.axis = {0:[self.benchmark],
+                     1:['3MSOFR', '3MTBILL'], 
+                     2:['DIFF']}
+
+        self.last_stats = data.iloc[-1]
+        self.last_update = data.index[-1]
+        return data
+    
+
+class CrossVol(ModelAdmin):
+    def __init__(self, data, benchmark='SPY', from_date='2022-05-16 00:00'):
+        #Meta information
+        self.name = 'CROSS'
+        self.code = 'CROSS'
+        self.description = '''Cross Volatility Index'''
+        self.from_date = from_date   
+        self.params = ['upper', 'lower', 'above_up', 'below_low']
+
+        #Data and model parameters
+        self.avg_window = 30
+        self.benchmark = benchmark
+        self.data = data
+        self.upper = 0.5
+        self.lower = 0.25
+
+
+        self.above_up = -1
+        self.below_low = 1
+        self.other = 0
+        
+        ModelAdmin.__init__(self)
+    
+    def indicator(self):
+
+        data = self.data.copy()[[self.benchmark,'MOVE.INDX', 'VIX.INDX']]
+        data.columns = [self.benchmark, 'MOVE', 'VIX']
+        rolling_matrices = data[['MOVE', 'VIX']].rolling(window=self.avg_window).corr()
+        index_col = rolling_matrices.where(rolling_matrices < 1.0).mean(axis=1).groupby(level=0).mean()
+        data['CORR'] = index_col
+
+        data.loc[data['CORR']>self.upper, 'SIGNAL'] = self.above_up
+        data.loc[data['CORR']<self.lower, 'SIGNAL'] = self.below_low
+        data['SIGNAL'] = data['SIGNAL'].fillna(self.other)
+        data = data.dropna()
+        self.model_data = data
+        self.signal = data[['SIGNAL']]
+        self.signal.columns = [self.code]
+
+        self.axis = {0:[self.benchmark],
+                     1:['CORR'], 
+                     2:['CORR']}
 
         self.last_stats = data.iloc[-1]
         self.last_update = data.index[-1]

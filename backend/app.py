@@ -46,7 +46,10 @@ MODEL_LIST  = [models.VolSpread,
                models.VixSpread, 
                models.GEX, 
                models.Skew, 
-               models.TermSt]
+               models.TermSt, 
+               models.MOVEVix, 
+               models.TEDSpread, 
+               models.CrossVol]
 
 def saved_models():
     models = [{'label':x, 'value':x} for x in os.listdir(MODELS_DIR)]
@@ -69,6 +72,10 @@ def composite_inputs(obj):
         dbc.Row([
             dbc.Col(html.P('Traffic Light')), 
             dbc.Col(dbc.Badge(signals[obj.last_stats['SIGNAL']], color=colors[obj.last_stats['SIGNAL']], className="me-1", id=f"{code}-signal-badge"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Last Update')), 
+            dbc.Col(html.P(f"{obj.last_update.strftime('%Y-%m-%d')}", id=f"{code}-date"))
                 ]),
         dbc.Row([
             dbc.Col(html.H6('Phase I')),
@@ -101,8 +108,16 @@ def composite_inputs(obj):
             dbc.Col(dbc.Badge(signals[obj.models['TERM'].last_stats['SIGNAL']], color=colors[obj.models['TERM'].last_stats['SIGNAL']], className="me-1", id=f"TERM-signal-badge"))
                 ]),
         dbc.Row([
-            dbc.Col(html.P('Last Update')), 
-            dbc.Col(html.P(f"{obj.last_update.strftime('%Y-%m-%d')}", id=f"{code}-date"))
+            dbc.Col(html.P('MOVE-VIX Spread')), 
+            dbc.Col(dbc.Badge(signals[obj.models['MOVE'].last_stats['SIGNAL']], color=colors[obj.models['MOVE'].last_stats['SIGNAL']], className="me-1", id=f"MOVE-signal-badge"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('TED Spread')), 
+            dbc.Col(dbc.Badge(signals[obj.models['TED'].last_stats['SIGNAL']], color=colors[obj.models['TED'].last_stats['SIGNAL']], className="me-1", id=f"TED-signal-badge"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Cross Correlation')), 
+            dbc.Col(dbc.Badge(signals[obj.models['CROSS'].last_stats['SIGNAL']], color=colors[obj.models['CROSS'].last_stats['SIGNAL']], className="me-1", id=f"CROSS-signal-badge"))
                 ]),
         dbc.Row([
             dbc.Col(html.H6('Inputs')),
@@ -522,6 +537,188 @@ def term_inputs(obj):
     return conta
 
 
+def move_inputs(obj):
+    code='MOVE'
+    conta = dbc.Container([
+        dbc.Row([
+            dbc.Col(html.P('MOVE')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['MOVE']:.2f}", id=f"{code}-move"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('VIX')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['VIX']:.2f}", id=f"{code}-vix"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Difference')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['DIFF']:.2f}", id=f"{code}-diff"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Signal')), 
+            dbc.Col(dbc.Badge(signals[obj.models[code].last_stats['SIGNAL']], color=colors[obj.models[code].last_stats['SIGNAL']], className="me-1", id=f"{code}-signal-badge"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Last Update')), 
+            dbc.Col(html.P(f"{obj.models[code].last_update.strftime('%Y-%m-%d')}", id=f"{code}-date"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.H6('Inputs')), 
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Upper Band')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-upper-band', value=obj.models[code].upper, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Lower Band')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-lower-band', value=obj.models[code].lower, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Above Upper')), 
+            dbc.Col(dbc.Select(size='sm',id=f'{code}-above-upper', 
+                               options= [
+                                   {'label':'Red', 'value':-1}, 
+                                   {'label':'Yellow', 'value':0}, 
+                                   {'label':'Green', 'value':1}
+                                   ],
+                               value=obj.models[code].above_up))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Below Lower')), 
+            dbc.Col(dbc.Select(size='sm',id=f'{code}-below-lower', 
+                               options= [
+                                   {'label':'Red', 'value':-1}, 
+                                   {'label':'Yellow', 'value':0}, 
+                                   {'label':'Green', 'value':1}
+                                   ],
+                               value=obj.models[code].below_low))
+                ]),
+        dbc.Row([
+            dbc.Col(
+                dbc.Button("Submit", id=f"{code}-submit-btn", color="primary", className="mt-2")
+            ), 
+                ])
+    ])
+    return conta
+
+def ted_inputs(obj):
+    code='TED'
+    conta = dbc.Container([
+        dbc.Row([
+            dbc.Col(html.P('3-month SOFR')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['3MSOFR']:.2f}", id=f"{code}-3msofr"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('TBILL')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['3MTBILL']:.2f}", id=f"{code}-3mtbill"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Difference')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['DIFF']:.2f}", id=f"{code}-diff"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Signal')), 
+            dbc.Col(dbc.Badge(signals[obj.models[code].last_stats['SIGNAL']], color=colors[obj.models[code].last_stats['SIGNAL']], className="me-1", id=f"{code}-signal-badge"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Last Update')), 
+            dbc.Col(html.P(f"{obj.models[code].last_update.strftime('%Y-%m-%d')}", id=f"{code}-date"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.H6('Inputs')), 
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Upper Band')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-upper-band', value=obj.models[code].upper, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Lower Band')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-lower-band', value=obj.models[code].lower, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Above Upper')), 
+            dbc.Col(dbc.Select(size='sm',id=f'{code}-above-upper', 
+                               options= [
+                                   {'label':'Red', 'value':-1}, 
+                                   {'label':'Yellow', 'value':0}, 
+                                   {'label':'Green', 'value':1}
+                                   ],
+                               value=obj.models[code].above_up))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Below Lower')), 
+            dbc.Col(dbc.Select(size='sm',id=f'{code}-below-lower', 
+                               options= [
+                                   {'label':'Red', 'value':-1}, 
+                                   {'label':'Yellow', 'value':0}, 
+                                   {'label':'Green', 'value':1}
+                                   ],
+                               value=obj.models[code].below_low))
+                ]),
+        dbc.Row([
+            dbc.Col(
+                dbc.Button("Submit", id=f"{code}-submit-btn", color="primary", className="mt-2")
+            ), 
+                ])
+    ])
+    return conta
+
+def cross_inputs(obj):
+    code='CROSS'
+    conta = dbc.Container([
+        dbc.Row([
+            dbc.Col(html.P('Cross Correlation')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['CORR']:.2f}", id=f"{code}-corr"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Signal')), 
+            dbc.Col(dbc.Badge(signals[obj.models[code].last_stats['SIGNAL']], color=colors[obj.models[code].last_stats['SIGNAL']], className="me-1", id=f"{code}-signal-badge"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Last Update')), 
+            dbc.Col(html.P(f"{obj.models[code].last_update.strftime('%Y-%m-%d')}", id=f"{code}-date"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.H6('Inputs')), 
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Correlation Window')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-avg-window', value=obj.models[code].avg_window, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Upper Band')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-upper-band', value=obj.models[code].upper, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Lower Band')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-lower-band', value=obj.models[code].lower, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Above Upper')), 
+            dbc.Col(dbc.Select(size='sm',id=f'{code}-above-upper', 
+                               options= [
+                                   {'label':'Red', 'value':-1}, 
+                                   {'label':'Yellow', 'value':0}, 
+                                   {'label':'Green', 'value':1}
+                                   ],
+                               value=obj.models[code].above_up))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Below Lower')), 
+            dbc.Col(dbc.Select(size='sm',id=f'{code}-below-lower', 
+                               options= [
+                                   {'label':'Red', 'value':-1}, 
+                                   {'label':'Yellow', 'value':0}, 
+                                   {'label':'Green', 'value':1}
+                                   ],
+                               value=obj.models[code].below_low))
+                ]),
+        dbc.Row([
+            dbc.Col(
+                dbc.Button("Submit", id=f"{code}-submit-btn", color="primary", className="mt-2")
+            ), 
+                ])
+    ])
+    return conta
+
 def main_display(inputs=None):
     row = dbc.Row([
             dbc.Col([inputs]),
@@ -593,7 +790,10 @@ def initialize_app(_):
             dbc.Tab(label="VIX-VVIX Spread", tab_id="VIXVVIX"), 
             dbc.Tab(label="GEX", tab_id="GEX"),
             dbc.Tab(label="Vol. Skew", tab_id="SKEW"), 
-            dbc.Tab(label="Vol. Term Structure", tab_id="TERM")
+            dbc.Tab(label="Vol. Term Structure", tab_id="TERM"),
+            dbc.Tab(label="MOVE-Vix Spread", tab_id="MOVE"), 
+            dbc.Tab(label="TED Spread", tab_id="TED"), 
+            dbc.Tab(label="Cross Correlation", tab_id="CROSS")
         ], id="tabs", active_tab="COMPOSITE", className="mb-3 mt-3"),
         html.Div(id="tabs-content")
     ]
@@ -623,6 +823,12 @@ def render_content(active_tab, session_store):
         return main_display(inputs=skew_inputs(obj))
     elif active_tab== "TERM":
         return main_display(inputs=term_inputs(obj))
+    elif active_tab == "MOVE":
+        return main_display(inputs=move_inputs(obj))
+    elif active_tab == "TED":
+        return main_display(inputs=ted_inputs(obj))
+    elif active_tab == "CROSS":
+        return main_display(inputs=cross_inputs(obj))
     elif active_tab == "COMPOSITE":
         return main_display(inputs=composite_inputs(obj))
          
@@ -916,6 +1122,130 @@ def update_TERM(n_clicks, upper, lower, above_up, below_low, session_store):
 
     return fig, signal_label, signal_color, session_store
 
+
+@app.callback(
+    Output(f'indicator-chart', 'figure', allow_duplicate=True),
+    Output(f'MOVE-signal-badge', 'children'),
+    Output(f'MOVE-signal-badge', 'color'),
+    Output(f'session-store', 'data', allow_duplicate=True), 
+    Input(f'MOVE-submit-btn', 'n_clicks'),
+    State(f'MOVE-upper-band', 'value'),
+    State(f'MOVE-lower-band', 'value'),
+    State(f'MOVE-above-upper', 'value'),
+    State(f'MOVE-below-lower', 'value'),
+    State(f'session-store', 'data'),
+    prevent_initial_call=True
+)
+def update_MOVE(n_clicks, upper, lower, above_up, below_low, session_store):
+    current_data = fetch_market_data()
+    obj = models.Composite(MODEL_LIST, current_data)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
+    obj.models['MOVE'].upper = upper
+    obj.models['MOVE'].lower = lower
+    obj.models['MOVE'].above_up = int(above_up)
+    obj.models['MOVE'].below_low = int(below_low)
+    
+    obj.refresh_models()
+    obj.indicator()
+
+    session_store = obj.to_dict()
+
+    fig = obj.models['MOVE'].plot_indicator_plotly()
+    
+    stats = obj.models['MOVE'].last_stats
+    
+
+    signal_label = signals[stats['SIGNAL']]
+    signal_color = colors[stats['SIGNAL']]
+
+    return fig, signal_label, signal_color, session_store
+
+@app.callback(
+    Output(f'indicator-chart', 'figure', allow_duplicate=True),
+    Output(f'TED-signal-badge', 'children'),
+    Output(f'TED-signal-badge', 'color'),
+    Output(f'session-store', 'data', allow_duplicate=True), 
+    Input(f'TED-submit-btn', 'n_clicks'),
+    State(f'TED-upper-band', 'value'),
+    State(f'TED-lower-band', 'value'),
+    State(f'TED-above-upper', 'value'),
+    State(f'TED-below-lower', 'value'),
+    State(f'session-store', 'data'),
+    prevent_initial_call=True
+)
+def update_TED(n_clicks, upper, lower, above_up, below_low, session_store):
+    current_data = fetch_market_data()
+    obj = models.Composite(MODEL_LIST, current_data)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
+    obj.models['TED'].upper = upper
+    obj.models['TED'].lower = lower
+    obj.models['TED'].above_up = int(above_up)
+    obj.models['TED'].below_low = int(below_low)
+    
+    obj.refresh_models()
+    obj.indicator()
+
+    session_store = obj.to_dict()
+
+    fig = obj.models['TED'].plot_indicator_plotly()
+    
+    stats = obj.models['TED'].last_stats
+    
+
+    signal_label = signals[stats['SIGNAL']]
+    signal_color = colors[stats['SIGNAL']]
+
+    return fig, signal_label, signal_color, session_store
+
+
+@app.callback(
+    Output(f'indicator-chart', 'figure', allow_duplicate=True),
+    Output(f'CROSS-corr', 'children'),
+    Output(f'CROSS-signal-badge', 'children'),
+    Output(f'CROSS-signal-badge', 'color'),
+    Output(f'session-store', 'data', allow_duplicate=True), 
+    Input(f'CROSS-submit-btn', 'n_clicks'),
+    State(f'CROSS-avg-window', 'value'),
+    State(f'CROSS-upper-band', 'value'),
+    State(f'CROSS-lower-band', 'value'),
+    State(f'CROSS-above-upper', 'value'),
+    State(f'CROSS-below-lower', 'value'),
+    State(f'session-store', 'data'),
+    prevent_initial_call=True
+)
+def update_CROSS(n_clicks, avg_window, upper, lower, above_up, below_low, session_store):
+    current_data = fetch_market_data()
+    obj = models.Composite(MODEL_LIST, current_data)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
+    obj.models['CROSS'].avg_window = avg_window
+    obj.models['CROSS'].upper = upper
+    obj.models['CROSS'].lower = lower
+    obj.models['CROSS'].above_up = int(above_up)
+    obj.models['CROSS'].below_low = int(below_low)
+    
+    obj.refresh_models()
+    obj.indicator()
+
+    session_store = obj.to_dict()
+
+    fig = obj.models['CROSS'].plot_indicator_plotly()
+    
+    stats = obj.models['CROSS'].last_stats
+
+    corr = stats['CORR']
+    signal_label = signals[stats['SIGNAL']]
+    signal_color = colors[stats['SIGNAL']]
+
+    return fig, corr,  signal_label, signal_color, session_store
 
 
 @app.callback(
