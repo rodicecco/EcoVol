@@ -44,7 +44,9 @@ def fetch_market_data():
 MODEL_LIST  = [models.VolSpread, 
                models.VolAutocorr, 
                models.VixSpread, 
-               models.GEX]
+               models.GEX, 
+               models.Skew, 
+               models.TermSt]
 
 def saved_models():
     models = [{'label':x, 'value':x} for x in os.listdir(MODELS_DIR)]
@@ -69,6 +71,9 @@ def composite_inputs(obj):
             dbc.Col(dbc.Badge(signals[obj.last_stats['SIGNAL']], color=colors[obj.last_stats['SIGNAL']], className="me-1", id=f"{code}-signal-badge"))
                 ]),
         dbc.Row([
+            dbc.Col(html.H6('Phase I')),
+                ]),
+        dbc.Row([
             dbc.Col(html.P('Vol-VIX Spread')), 
             dbc.Col(dbc.Badge(signals[obj.models['VOLSPREAD'].last_stats['SIGNAL']], color=colors[obj.models['VOLSPREAD'].last_stats['SIGNAL']], className="me-1", id=f"VOLSPREAD-signal-badge"))
                 ]),
@@ -83,6 +88,17 @@ def composite_inputs(obj):
         dbc.Row([
             dbc.Col(html.P('GEX')), 
             dbc.Col(dbc.Badge(signals[obj.models['GEX'].last_stats['SIGNAL']], color=colors[obj.models['GEX'].last_stats['SIGNAL']], className="me-1", id=f"GEX-signal-badge"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.H6('Phase II')),
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Volatility Skew')), 
+            dbc.Col(dbc.Badge(signals[obj.models['SKEW'].last_stats['SIGNAL']], color=colors[obj.models['SKEW'].last_stats['SIGNAL']], className="me-1", id=f"SKEW-signal-badge"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Vol. Term Structure')), 
+            dbc.Col(dbc.Badge(signals[obj.models['TERM'].last_stats['SIGNAL']], color=colors[obj.models['TERM'].last_stats['SIGNAL']], className="me-1", id=f"TERM-signal-badge"))
                 ]),
         dbc.Row([
             dbc.Col(html.P('Last Update')), 
@@ -381,6 +397,131 @@ def gex_inputs(obj):
     return conta
 
 
+def skew_inputs(obj):
+    code='SKEW'
+    conta = dbc.Container([
+        dbc.Row([
+            dbc.Col(html.P('Volatility Skew')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['SKEW']:.2f}", id=f"{code}-skew"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Volatility ZScore')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['ZSCORE']:.2f}", id=f"{code}-zscore"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Signal')), 
+            dbc.Col(dbc.Badge(signals[obj.models[code].last_stats['SIGNAL']], color=colors[obj.models[code].last_stats['SIGNAL']], className="me-1", id=f"{code}-signal-badge"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Last Update')), 
+            dbc.Col(html.P(f"{obj.models[code].last_update.strftime('%Y-%m-%d')}", id=f"{code}-date"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.H6('Inputs')), 
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Z-Score Window')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-avg_window', value=obj.models[code].avg_window, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Upper Band')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-upper-band', value=obj.models[code].upper, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Lower Band')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-lower-band', value=obj.models[code].lower, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Above Upper')), 
+            dbc.Col(dbc.Select(size='sm',id=f'{code}-above-upper', 
+                               options= [
+                                   {'label':'Red', 'value':-1}, 
+                                   {'label':'Yellow', 'value':0}, 
+                                   {'label':'Green', 'value':1}
+                                   ],
+                               value=obj.models[code].above_up))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Below Lower')), 
+            dbc.Col(dbc.Select(size='sm',id=f'{code}-below-lower', 
+                               options= [
+                                   {'label':'Red', 'value':-1}, 
+                                   {'label':'Yellow', 'value':0}, 
+                                   {'label':'Green', 'value':1}
+                                   ],
+                               value=obj.models[code].below_low))
+                ]),
+        dbc.Row([
+            dbc.Col(
+                dbc.Button("Submit", id=f"{code}-submit-btn", color="primary", className="mt-2")
+            ), 
+                ])
+    ])
+    return conta
+
+def term_inputs(obj):
+    code='TERM'
+    conta = dbc.Container([
+        dbc.Row([
+            dbc.Col(html.P('VIX9D')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['VIX9D']:.2f}", id=f"{code}-vix9d"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('VIX3M')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['VIX3M']:.2f}", id=f"{code}-vix3m"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Ratio')), 
+            dbc.Col(html.P(f"{obj.models[code].last_stats['RATIO']:.2f}", id=f"{code}-ratio"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Signal')), 
+            dbc.Col(dbc.Badge(signals[obj.models[code].last_stats['SIGNAL']], color=colors[obj.models[code].last_stats['SIGNAL']], className="me-1", id=f"{code}-signal-badge"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Last Update')), 
+            dbc.Col(html.P(f"{obj.models[code].last_update.strftime('%Y-%m-%d')}", id=f"{code}-date"))
+                ]),
+        dbc.Row([
+            dbc.Col(html.H6('Inputs')), 
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Upper Band')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-upper-band', value=obj.models[code].upper, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Lower Band')), 
+            dbc.Col(dbc.Input(size='sm',id=f'{code}-lower-band', value=obj.models[code].lower, type='number'))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Above Upper')), 
+            dbc.Col(dbc.Select(size='sm',id=f'{code}-above-upper', 
+                               options= [
+                                   {'label':'Red', 'value':-1}, 
+                                   {'label':'Yellow', 'value':0}, 
+                                   {'label':'Green', 'value':1}
+                                   ],
+                               value=obj.models[code].above_up))
+                ]),
+        dbc.Row([
+            dbc.Col(html.P('Below Lower')), 
+            dbc.Col(dbc.Select(size='sm',id=f'{code}-below-lower', 
+                               options= [
+                                   {'label':'Red', 'value':-1}, 
+                                   {'label':'Yellow', 'value':0}, 
+                                   {'label':'Green', 'value':1}
+                                   ],
+                               value=obj.models[code].below_low))
+                ]),
+        dbc.Row([
+            dbc.Col(
+                dbc.Button("Submit", id=f"{code}-submit-btn", color="primary", className="mt-2")
+            ), 
+                ])
+    ])
+    return conta
+
+
 def main_display(inputs=None):
     row = dbc.Row([
             dbc.Col([inputs]),
@@ -450,7 +591,9 @@ def initialize_app(_):
             dbc.Tab(label="Vol-VIX Spread", tab_id="VOLSPREAD"),
             dbc.Tab(label="Autocorrelation", tab_id="VOLAUTOCORR"),
             dbc.Tab(label="VIX-VVIX Spread", tab_id="VIXVVIX"), 
-            dbc.Tab(label="GEX", tab_id="GEX")
+            dbc.Tab(label="GEX", tab_id="GEX"),
+            dbc.Tab(label="Vol. Skew", tab_id="SKEW"), 
+            dbc.Tab(label="Vol. Term Structure", tab_id="TERM")
         ], id="tabs", active_tab="COMPOSITE", className="mb-3 mt-3"),
         html.Div(id="tabs-content")
     ]
@@ -476,6 +619,10 @@ def render_content(active_tab, session_store):
         return main_display(inputs=vixvvix_inputs(obj))
     elif active_tab== "GEX":
         return main_display(inputs=gex_inputs(obj))
+    elif active_tab== "SKEW":
+        return main_display(inputs=skew_inputs(obj))
+    elif active_tab== "TERM":
+        return main_display(inputs=term_inputs(obj))
     elif active_tab == "COMPOSITE":
         return main_display(inputs=composite_inputs(obj))
          
@@ -683,6 +830,91 @@ def update_GEX(n_clicks,  upper, lower, above_up, below_low, session_store):
     return fig, gex, signal_label, signal_color, session_store
 
 
+@app.callback(
+    Output(f'indicator-chart', 'figure', allow_duplicate=True),
+    Output(f'SKEW-skew', 'children'),
+    Output(f'SKEW-zscore', 'children'),
+    Output(f'SKEW-signal-badge', 'children'),
+    Output(f'SKEW-signal-badge', 'color'),
+    Output(f'session-store', 'data', allow_duplicate=True), 
+    Input(f'SKEW-submit-btn', 'n_clicks'),
+    State(f'SKEW-avg_window', 'value'),
+    State(f'SKEW-upper-band', 'value'),
+    State(f'SKEW-lower-band', 'value'),
+    State(f'SKEW-above-upper', 'value'),
+    State(f'SKEW-below-lower', 'value'),
+    State(f'session-store', 'data'),
+    prevent_initial_call=True
+)
+def update_SKEW(n_clicks,  avg_window, upper, lower, above_up, below_low, session_store):
+    current_data = fetch_market_data()
+    obj = models.Composite(MODEL_LIST, current_data)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
+    obj.models['SKEW'].avg_window = avg_window
+    obj.models['SKEW'].upper = upper
+    obj.models['SKEW'].lower = lower
+    obj.models['SKEW'].above_up = int(above_up)
+    obj.models['SKEW'].below_low = int(below_low)
+    
+    obj.refresh_models()
+    obj.indicator()
+
+    session_store = obj.to_dict()
+
+    fig = obj.models['SKEW'].plot_indicator_plotly()
+    
+    stats = obj.models['SKEW'].last_stats
+    skew = stats['SKEW']
+    zscore = stats['ZSCORE']
+
+    signal_label = signals[stats['SIGNAL']]
+    signal_color = colors[stats['SIGNAL']]
+
+    return fig, skew, zscore, signal_label, signal_color, session_store
+
+
+@app.callback(
+    Output(f'indicator-chart', 'figure', allow_duplicate=True),
+    Output(f'TERM-signal-badge', 'children'),
+    Output(f'TERM-signal-badge', 'color'),
+    Output(f'session-store', 'data', allow_duplicate=True), 
+    Input(f'TERM-submit-btn', 'n_clicks'),
+    State(f'TERM-upper-band', 'value'),
+    State(f'TERM-lower-band', 'value'),
+    State(f'TERM-above-upper', 'value'),
+    State(f'TERM-below-lower', 'value'),
+    State(f'session-store', 'data'),
+    prevent_initial_call=True
+)
+def update_TERM(n_clicks, upper, lower, above_up, below_low, session_store):
+    current_data = fetch_market_data()
+    obj = models.Composite(MODEL_LIST, current_data)
+    obj.load_models()
+    obj.from_dict(session_store)
+    obj.indicator()
+
+    obj.models['TERM'].upper = upper
+    obj.models['TERM'].lower = lower
+    obj.models['TERM'].above_up = int(above_up)
+    obj.models['TERM'].below_low = int(below_low)
+    
+    obj.refresh_models()
+    obj.indicator()
+
+    session_store = obj.to_dict()
+
+    fig = obj.models['TERM'].plot_indicator_plotly()
+    
+    stats = obj.models['TERM'].last_stats
+    
+
+    signal_label = signals[stats['SIGNAL']]
+    signal_color = colors[stats['SIGNAL']]
+
+    return fig, signal_label, signal_color, session_store
 
 
 

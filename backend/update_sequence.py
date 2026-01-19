@@ -1,4 +1,4 @@
-from content import eod, gex
+from content import eod, gex, fred
 
 
 def update_sequence():
@@ -6,6 +6,7 @@ def update_sequence():
     eod.Historical(symbols).update_sequence()
     eod.Intraday('SPY').update_sequence()
     gex.DIX().update_sequence()
+    fred.Observations(['DTB3','SOFR90DAYAVG' ]).update_sequence()
 
     return True
 

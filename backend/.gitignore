@@ -14,5 +14,8 @@ env/
 # Notebooks
 *.ipynb
 
+#Excel
+*.xlsx
+
 #Cache
 flask_cache/

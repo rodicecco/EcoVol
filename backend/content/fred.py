@@ -169,6 +169,8 @@ class Observations(Database):
         frame = pd.DataFrame(self.raw_data)
         frame.value = pd.to_numeric(frame.value, errors='coerce')
 
+        self.raw_data = frame.to_dict(orient='records')
+
         self.data_ = frame
         self.columns = frame.columns
         self.dtypes = frame.dtypes.items()

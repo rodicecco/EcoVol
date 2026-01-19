@@ -113,6 +113,9 @@ class Data:
         self.get_historical('VIX.INDX')
         self.get_historical('VVIX.INDX')
         self.get_historical('VIX1D.INDX')
+        self.get_historical('SKEW.INDX')
+        self.get_historical('VIX9D.INDX')
+        self.get_historical('VIX3M.INDX')
         self.volatility()
         self.get_gex()
         return True
@@ -575,6 +578,97 @@ class GEX(ModelAdmin):
         self.axis = {0:[self.benchmark],
                      1:['GEX'], 
                      2:['GEX']}
+
+        self.last_stats = data.iloc[-1]
+        self.last_update = data.index[-1]
+        return data
+    
+
+class Skew(ModelAdmin):
+    def __init__(self, data, benchmark='SPY', from_date='2022-05-16 00:00'):
+        #Meta information
+        self.name = 'SKEW'
+        self.code = 'SKEW'
+        self.description = '''Volatility Skew Index'''
+        self.from_date = from_date   
+        self.params = ['upper', 'lower', 'above_up', 'below_low']
+
+        #Data and model parameters
+        self.avg_window = 30
+        self.benchmark = benchmark
+        self.data = data
+        self.upper = 0.5
+        self.lower = -0.5
+
+
+        self.above_up = -1
+        self.below_low = 1
+        self.other = 0
+        
+        ModelAdmin.__init__(self)
+    
+    def indicator(self):
+
+        data = self.data.copy()[[self.benchmark,'SKEW.INDX']]
+        data.columns = [self.benchmark, self.code]
+        data['ZSCORE'] = data[self.code].rolling(window=self.avg_window).apply(lambda x: (x.iloc[-1] - x.mean()) / x.std())
+
+        data.loc[data['ZSCORE']>self.upper, 'SIGNAL'] = self.above_up
+        data.loc[data['ZSCORE']<self.lower, 'SIGNAL'] = self.below_low
+        data['SIGNAL'] = data['SIGNAL'].fillna(self.other)
+        data = data.dropna()
+        self.model_data = data
+        self.signal = data[['SIGNAL']]
+        self.signal.columns = [self.code]
+
+        self.axis = {0:[self.benchmark],
+                     1:['SKEW'], 
+                     2:['ZSCORE']}
+
+        self.last_stats = data.iloc[-1]
+        self.last_update = data.index[-1]
+        return data
+    
+
+class TermSt(ModelAdmin):
+    def __init__(self, data, benchmark='SPY', from_date='2022-05-16 00:00'):
+        #Meta information
+        self.name = 'TERM'
+        self.code = 'TERM'
+        self.description = '''Term Structure Slope'''
+        self.from_date = from_date   
+        self.params = ['upper', 'lower', 'above_up', 'below_low']
+
+        #Data and model parameters
+        self.benchmark = benchmark
+        self.data = data
+        self.upper = 0.5
+        self.lower = -0.5
+
+
+        self.above_up = -1
+        self.below_low = 1
+        self.other = 0
+        
+        ModelAdmin.__init__(self)
+    
+    def indicator(self):
+
+        data = self.data.copy()[[self.benchmark,'VIX9D.INDX', 'VIX3M.INDX']]
+        data.columns = [self.benchmark, 'VIX9D', 'VIX3M']
+        data['RATIO'] = data['VIX9D']/data['VIX3M'] - 1
+
+        data.loc[data['RATIO']>self.upper, 'SIGNAL'] = self.above_up
+        data.loc[data['RATIO']<self.lower, 'SIGNAL'] = self.below_low
+        data['SIGNAL'] = data['SIGNAL'].fillna(self.other)
+        data = data.dropna()
+        self.model_data = data
+        self.signal = data[['SIGNAL']]
+        self.signal.columns = [self.code]
+
+        self.axis = {0:[self.benchmark],
+                     1:['VIX9D', 'VIX3M'], 
+                     2:['RATIO']}
 
         self.last_stats = data.iloc[-1]
         self.last_update = data.index[-1]

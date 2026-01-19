@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 #Update set that only takes tickers in the indexes listed above
 def priority_update_set():
-    resp = ['VVIX.INDX', 'VIX.INDX', 'VIX1D.INDX', 'GSPC.INDX', 'SPY']
+    resp = ['VVIX.INDX', 'VIX.INDX', 'VIX1D.INDX', 'GSPC.INDX','MOVE.INDX','VIX9D.INDX','VIX3M.INDX', 'SKEW.INDX','SPY']
     return resp
 
 

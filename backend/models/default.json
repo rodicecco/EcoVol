@@ -1,8 +1,8 @@
 {
     "upper": 1,
     "lower": 0,
-    "above_up": -1,
-    "below_low": 1,
+    "above_up": 1,
+    "below_low": -1,
     "models": {
         "VOLSPREAD": {
             "upper": 0.8,
@@ -28,6 +28,19 @@
         "GEX": {
             "upper": 0,
             "lower": 0,
+            "above_up": -1,
+            "below_low": 1
+        },
+        "SKEW": {
+            "avg_window":30,
+            "upper": 0.5,
+            "lower": -0.5,
+            "above_up": -1,
+            "below_low": 1
+        },
+        "TERM": {
+            "upper": 0.5,
+            "lower": -0.5,
             "above_up": -1,
             "below_low": 1
         }
